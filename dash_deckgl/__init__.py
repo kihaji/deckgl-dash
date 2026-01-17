@@ -1,3 +1,23 @@
+"""dash-deckgl: Direct deck.gl wrapper for Plotly Dash.
+
+High-performance WebGL-powered visualization with support for large vector datasets,
+Cloud Optimized GeoTIFFs (COGs), and tile-based base maps.
+
+Example:
+    >>> from dash import Dash
+    >>> from dash_deckgl import DeckGL
+    >>> from dash_deckgl.layers import TileLayer, GeoJsonLayer
+    >>>
+    >>> app = Dash(__name__)
+    >>> app.layout = DeckGL(
+    ...     id='map',
+    ...     layers=[
+    ...         TileLayer(id='basemap', data='https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+    ...         GeoJsonLayer(id='data', data=geojson, get_fill_color='#FF8C00', pickable=True)
+    ...     ],
+    ...     initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11}
+    ... )
+"""
 from __future__ import print_function as _
 
 import os as _os
@@ -6,9 +26,18 @@ import json
 
 import dash as _dash
 
-# noinspection PyUnresolvedReferences
-from ._imports_ import *
-from ._imports_ import __all__
+# Import the wrapped DeckGL component (supports Python layer helpers)
+# Use explicit re-export to avoid Pylance confusing class with DeckGL.py module
+from .component import DeckGL as DeckGL
+
+# Also expose the base component for advanced use cases
+from .DeckGL import DeckGL as DeckGLBase
+
+# Import layers module for convenience
+from . import layers
+
+# Export list
+__all__ = ['DeckGL', 'DeckGLBase', 'layers']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '
@@ -81,7 +110,9 @@ _js_dist.extend(
 
 _css_dist = []
 
-
-for _component in __all__:
-    setattr(locals()[_component], '_js_dist', _js_dist)
-    setattr(locals()[_component], '_css_dist', _css_dist)
+# Set JS/CSS dist for both DeckGL and DeckGLBase
+# These are standard Dash component class attributes for asset registration
+DeckGL._js_dist = _js_dist  # type: ignore[attr-defined]
+DeckGL._css_dist = _css_dist  # type: ignore[attr-defined]
+DeckGLBase._js_dist = _js_dist  # type: ignore[attr-defined]
+DeckGLBase._css_dist = _css_dist  # type: ignore[attr-defined]

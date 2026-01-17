@@ -9,18 +9,25 @@ import { createClickHandler, createHoverHandler, createViewStateChangeHandler, i
  * A high-performance WebGL-powered visualization component wrapping deck.gl
  * Supports all deck.gl layer types via JSON configuration
  */
-const DeckGL = (props) => {
-    const {
-        id,
-        layers,
-        initialViewState,
-        viewState: controlledViewState,
-        controller,
-        enableEvents,
-        tooltip,
-        style,
-        setProps,
-    } = props;
+const DEFAULT_VIEW_STATE = {
+    longitude: -122.4,
+    latitude: 37.8,
+    zoom: 11,
+    pitch: 0,
+    bearing: 0,
+};
+
+const DeckGL = ({
+    id,
+    layers = [],
+    initialViewState = DEFAULT_VIEW_STATE,
+    viewState: controlledViewState,
+    controller = true,
+    enableEvents = false,
+    tooltip = false,
+    style = {},
+    setProps,
+}) => {
 
     // Internal view state for uncontrolled mode
     const [internalViewState, setInternalViewState] = useState(initialViewState);
@@ -140,74 +147,82 @@ function normalizePickInfo(info) {
     if (!info || !info.picked) {
         return null;
     }
+    // Serialize the object first
+    const serializedObject = serializeObject(info.object);
+    // Extract properties from the serialized object (not the original)
+    const properties = serializedObject?.properties || null;
+
     return {
         picked: true,
-        index: info.index,
+        index: typeof info.index === 'number' ? info.index : null,
         layerId: info.layer?.id || null,
-        coordinate: info.coordinate || null,
-        x: info.x,
-        y: info.y,
-        pixel: info.pixel || [info.x, info.y],
-        object: serializeObject(info.object),
-        properties: info.object?.properties || null,
-        sourceLayer: info.sourceLayer || null,
+        coordinate: Array.isArray(info.coordinate) ? [...info.coordinate] : null,
+        x: typeof info.x === 'number' ? info.x : null,
+        y: typeof info.y === 'number' ? info.y : null,
+        pixel: Array.isArray(info.pixel) ? [...info.pixel] : [info.x, info.y],
+        object: serializedObject,
+        properties: properties,
     };
 }
 
 /**
  * Serialize an object for JSON transport to Python
+ * Uses JSON.stringify with a custom replacer to handle cycles
  */
 function serializeObject(obj) {
+    if (obj === null || obj === undefined) {
+        return null;
+    }
+    // For GeoJSON features, extract only the standard GeoJSON properties
+    if (obj && typeof obj === 'object' && obj.type === 'Feature') {
+        return {
+            type: 'Feature',
+            geometry: safeClone(obj.geometry),
+            properties: safeClone(obj.properties) || {},
+            id: obj.id,
+        };
+    }
+    // For other objects, do a safe clone
+    return safeClone(obj);
+}
+
+/**
+ * Safely clone an object, handling circular references
+ */
+function safeClone(obj) {
     if (obj === null || obj === undefined) {
         return null;
     }
     if (typeof obj !== 'object') {
         return obj;
     }
-    if (Array.isArray(obj)) {
-        return obj.map(item => serializeObject(item));
+    try {
+        // Use JSON round-trip with cycle detection
+        const seen = new WeakSet();
+        return JSON.parse(JSON.stringify(obj, (key, value) => {
+            // Skip functions and symbols
+            if (typeof value === 'function' || typeof value === 'symbol') {
+                return undefined;
+            }
+            // Skip private properties
+            if (key.startsWith('_')) {
+                return undefined;
+            }
+            // Handle objects - check for cycles
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                    return undefined; // Skip circular reference
+                }
+                seen.add(value);
+            }
+            return value;
+        }));
+    } catch (e) {
+        // If JSON serialization fails, return a minimal safe object
+        console.warn('Failed to serialize object:', e);
+        return null;
     }
-    // Handle GeoJSON features
-    if (obj.type === 'Feature') {
-        return {
-            type: 'Feature',
-            geometry: obj.geometry,
-            properties: obj.properties || {},
-            id: obj.id,
-        };
-    }
-    // Handle plain objects
-    const serialized = {};
-    for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === 'function' || typeof value === 'symbol') {
-            continue;
-        }
-        if (key.startsWith('_')) {
-            continue;
-        }
-        try {
-            serialized[key] = serializeObject(value);
-        } catch (e) {
-            // Skip non-serializable properties
-        }
-    }
-    return serialized;
 }
-
-DeckGL.defaultProps = {
-    layers: [],
-    initialViewState: {
-        longitude: -122.4,
-        latitude: 37.8,
-        zoom: 11,
-        pitch: 0,
-        bearing: 0,
-    },
-    controller: true,
-    enableEvents: false,
-    tooltip: false,
-    style: {},
-};
 
 DeckGL.propTypes = {
     /**

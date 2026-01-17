@@ -36,10 +36,18 @@ export function normalizePickInfo(info) {
 /**
  * Serialize an object for JSON transport to Python
  * Handles GeoJSON features, plain objects, and primitives
+ * Includes cycle detection to prevent infinite recursion
  * @param {*} obj - Object to serialize
+ * @param {Set} seen - Set of already-visited objects (for cycle detection)
+ * @param {number} depth - Current recursion depth
  * @returns {*} Serializable version of the object
  */
-function serializeObject(obj) {
+function serializeObject(obj, seen = new Set(), depth = 0) {
+    // Prevent infinite recursion with depth limit
+    const MAX_DEPTH = 10;
+    if (depth > MAX_DEPTH) {
+        return '[max depth exceeded]';
+    }
     if (obj === null || obj === undefined) {
         return null;
     }
@@ -47,16 +55,21 @@ function serializeObject(obj) {
     if (typeof obj !== 'object') {
         return obj;
     }
+    // Cycle detection - if we've seen this object before, skip it
+    if (seen.has(obj)) {
+        return '[circular reference]';
+    }
+    seen.add(obj);
     // Handle arrays
     if (Array.isArray(obj)) {
-        return obj.map(item => serializeObject(item));
+        return obj.map(item => serializeObject(item, seen, depth + 1));
     }
-    // Handle GeoJSON features
+    // Handle GeoJSON features - extract only safe properties
     if (obj.type === 'Feature') {
         return {
             type: 'Feature',
-            geometry: obj.geometry,
-            properties: obj.properties || {},
+            geometry: serializeObject(obj.geometry, seen, depth + 1),
+            properties: obj.properties ? serializeObject(obj.properties, seen, depth + 1) : {},
             id: obj.id,
         };
     }
@@ -71,9 +84,13 @@ function serializeObject(obj) {
         if (key.startsWith('_')) {
             continue;
         }
-        // Recursively serialize nested objects (with depth limit)
+        // Skip known problematic deck.gl internal properties
+        if (['layer', 'sourceLayer', 'tile', 'viewport'].includes(key)) {
+            continue;
+        }
+        // Recursively serialize nested objects
         try {
-            serialized[key] = serializeObject(value);
+            serialized[key] = serializeObject(value, seen, depth + 1);
         } catch (e) {
             // Skip properties that fail to serialize
             console.warn(`Failed to serialize property ${key}:`, e);
