@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "dash-deckgl"
+version = "0.1.0"
+description = "Direct deck.gl wrapper for Plotly Dash"
+authors = ["Scott"]
+readme = "README.md"
+packages = [{include = "dash_deckgl"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+dash = ">=2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+dash = {extras = ["testing"], version = ">=2.0.0"}
+pyyaml = "^6.0.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
