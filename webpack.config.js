@@ -101,7 +101,7 @@ module.exports = (env, argv) => {
                         chunks: 'all',
                         minSize: 0,
                         minChunks: 2,
-                        name: 'dash_deckgl-shared'
+                        name: 'deckgl_dash-shared'
                     }
                 }
             }

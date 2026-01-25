@@ -1,13 +1,13 @@
 """
-Basic usage example for dash-deckgl with OpenStreetMap TileLayer
+Basic usage example for deckgl-dash with OpenStreetMap TileLayer
 """
 from dash import Dash, html, callback, Output, Input
-from dash_deckgl import DeckGL
+from deckgl_dash import DeckGL
 
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H1("dash-deckgl Demo"),
+    html.H1("deckgl-dash Demo"),
     DeckGL(
         id = 'map',
         layers = [

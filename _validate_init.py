@@ -9,7 +9,7 @@ import sys
 import importlib
 
 
-components_package = 'dash_deckgl'
+components_package = 'deckgl_dash'
 
 components_lib = importlib.import_module(components_package)
 

@@ -1,10 +1,27 @@
 [tool.poetry]
-name = "dash-deckgl"
+name = "deckgl-dash"
 version = "0.1.0"
 description = "Direct deck.gl wrapper for Plotly Dash"
 authors = ["Scott"]
 readme = "README.md"
-packages = [{include = "dash_deckgl"}]
+license = "MIT"
+packages = [{include = "deckgl_dash"}]
+classifiers = [
+    "Framework :: Dash",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Development Status :: 4 - Beta",
+]
+
+[tool.poetry.urls]
+"Homepage" = "https://github.com/scottpeterman/deckgl-dash"
+"Bug Tracker" = "https://github.com/scottpeterman/deckgl-dash/issues"
 
 [tool.poetry.dependencies]
 python = "^3.10"

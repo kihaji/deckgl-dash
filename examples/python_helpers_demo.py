@@ -1,5 +1,5 @@
 """
-Demo of dash-deckgl Python layer helpers.
+Demo of deckgl-dash Python layer helpers.
 
 This example demonstrates:
 - Using Python layer classes instead of JSON/dict
@@ -10,8 +10,8 @@ This example demonstrates:
 from dash import Dash, html, callback, Output, Input
 import json
 
-from dash_deckgl import DeckGL
-from dash_deckgl.layers import TileLayer, GeoJsonLayer, ScatterplotLayer
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import TileLayer, GeoJsonLayer, ScatterplotLayer
 
 # Sample GeoJSON data (San Francisco neighborhoods)
 SAMPLE_GEOJSON = {
@@ -64,7 +64,7 @@ SAMPLE_POINTS = [
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H1("dash-deckgl Python Layer Helpers Demo"),
+    html.H1("deckgl-dash Python Layer Helpers Demo"),
     html.P("Click on a polygon or point to see its properties."),
     DeckGL(
         id = 'map',

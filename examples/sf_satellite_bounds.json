@@ -1,0 +1,10 @@
+{
+  "lat_min": 37.65,
+  "lat_max": 37.85,
+  "lon_min": -122.55,
+  "lon_max": -122.25,
+  "crs": "EPSG:4326",
+  "source": "NASA VIIRS SNPP CorrectedReflectance TrueColor via Worldview Snapshots",
+  "date": "2024-08-15",
+  "license": "Public Domain (NASA)"
+}

@@ -278,8 +278,8 @@ GitHub.sublime-settings
 # Julia manifest file names
 Manifest.toml
 JuliaManifest.toml
+
+# Project-specific ignores
 CLAUDE.md
 DeckGL_Wrapper.md
-
-# Misc
-test_data/
+.claude/

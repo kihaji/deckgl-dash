@@ -1,6 +1,6 @@
-"""Tests for dash_deckgl.colors module."""
+"""Tests for deckgl_dash.colors module."""
 import pytest
-from dash_deckgl.colors import ColorScale, color_range_from_scale, AVAILABLE_SCALES
+from deckgl_dash.colors import ColorScale, color_range_from_scale, AVAILABLE_SCALES
 
 
 class TestColorScale:

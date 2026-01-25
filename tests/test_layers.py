@@ -1,6 +1,6 @@
-"""Unit tests for dash-deckgl layer helpers."""
+"""Unit tests for deckgl-dash layer helpers."""
 import pytest
-from dash_deckgl.layers import (
+from deckgl_dash.layers import (
     BaseLayer, process_layers, normalize_color, to_camel_case,
     GeoJsonLayer, ScatterplotLayer, PathLayer, LineLayer, ArcLayer, IconLayer, TextLayer, PolygonLayer,
     TileLayer, MVTLayer, BitmapLayer,

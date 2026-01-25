@@ -1,5 +1,5 @@
 """
-Performance test demo for dash-deckgl.
+Performance test demo for deckgl-dash.
 
 This example tests rendering performance with:
 - H3 hexagons (res 10) as GeoJSON features: 10k, 20k, 40k, 100k layers
@@ -18,8 +18,8 @@ import random
 from pathlib import Path
 from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update
 
-from dash_deckgl import DeckGL, ColorScale, color_range_from_scale
-from dash_deckgl.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
+from deckgl_dash import DeckGL, ColorScale, color_range_from_scale
+from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
 
 try:
     import h3
@@ -27,8 +27,9 @@ except ImportError:
     raise ImportError("h3 is required for this demo. Install with: pip install h3")
 
 # Load image bounds and encode image as base64 data URL
-BOUNDS_FILE = Path(__file__).parent.parent / "test_data" / "output_bounds.json"
-IMAGE_FILE = Path(__file__).parent.parent / "test_data" / "output_rgba.png"
+# Using NASA VIIRS satellite imagery (public domain) of San Francisco Bay Area
+BOUNDS_FILE = Path(__file__).parent / "sf_satellite_bounds.json"
+IMAGE_FILE = Path(__file__).parent / "sf_satellite.png"
 
 with open(BOUNDS_FILE) as f:
     bounds_data = json.load(f)
@@ -200,7 +201,7 @@ def create_layers(visible_layers: set, extruded_3d: bool = True) -> list:
 INITIAL_VISIBLE = set()
 
 app.layout = html.Div([
-    html.H1("dash-deckgl Performance Test"),
+    html.H1("deckgl-dash Performance Test"),
     html.P("Toggle layers to test rendering performance. Monitor browser console and FPS."),
 
     # Layer toggle controls
