@@ -104,14 +104,36 @@ const DeckGL = ({
             return text || null;
         }
         // Custom tooltip config
-        if (typeof tooltip === 'object' && tooltip.html) {
-            // Allow simple template substitution
-            let html = tooltip.html;
-            const obj = info.object.properties || info.object;
-            for (const [key, value] of Object.entries(obj)) {
-                html = html.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+        if (typeof tooltip === 'object') {
+            // Check for layer-specific tooltip config
+            const layerId = info.layer?.id;
+            let tooltipConfig = null;
+
+            if (tooltip.layers && layerId && tooltip.layers[layerId]) {
+                // Layer-specific tooltip
+                tooltipConfig = tooltip.layers[layerId];
+            } else if (tooltip.default) {
+                // Default tooltip config when using layers object
+                tooltipConfig = tooltip.default;
+            } else if (tooltip.html) {
+                // Simple {html: "..."} format (backwards compatible)
+                tooltipConfig = tooltip;
             }
-            return { html, style: tooltip.style || {} };
+
+            if (tooltipConfig && tooltipConfig.html) {
+                let html = tooltipConfig.html;
+                // Get properties from both object.properties (GeoJSON) and object directly (aggregation layers)
+                const props = info.object.properties || {};
+                const directProps = info.object || {};
+                const allProps = { ...directProps, ...props };
+
+                for (const [key, value] of Object.entries(allProps)) {
+                    if (typeof value !== 'object' && typeof value !== 'function') {
+                        html = html.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+                    }
+                }
+                return { html, style: tooltipConfig.style || {} };
+            }
         }
         return null;
     }, [tooltip]);

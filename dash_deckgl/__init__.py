@@ -36,8 +36,11 @@ from .DeckGL import DeckGL as DeckGLBase
 # Import layers module for convenience
 from . import layers
 
+# Import color scale utilities
+from .colors import ColorScale, color_range_from_scale, AVAILABLE_SCALES
+
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '

@@ -280,3 +280,6 @@ Manifest.toml
 JuliaManifest.toml
 CLAUDE.md
 DeckGL_Wrapper.md
+
+# Misc
+test_data/

@@ -53,6 +53,11 @@ def is_accessor_string(value: Any) -> bool:
     return isinstance(value, str) and value.startswith('@@=')
 
 
+def is_scale_accessor(value: Any) -> bool:
+    """Check if value is a color scale accessor string (@@scale(...))."""
+    return isinstance(value, str) and value.startswith('@@scale(')
+
+
 def to_camel_case(snake_str: str) -> str:
     """Convert snake_case to camelCase. Handles 'get_' prefix specially."""
     components = snake_str.split('_')
@@ -97,8 +102,8 @@ class BaseLayer(ABC):
         if value is None:
             return
         camel_key = to_camel_case(key)
-        # Check if this is a color property and not an accessor string
-        if key in self._color_props and not is_accessor_string(value):
+        # Check if this is a color property and not an accessor string or scale accessor
+        if key in self._color_props and not is_accessor_string(value) and not is_scale_accessor(value):
             value = normalize_color(value)
         self._props[camel_key] = value
 

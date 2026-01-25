@@ -3,6 +3,8 @@
  * Supports all deck.gl layer types from @deck.gl/layers, @deck.gl/geo-layers, and @deck.gl/aggregation-layers
  */
 
+import { isScaleAccessor, parseScaleAccessor, createColorScaleAccessor } from './colorScales';
+
 // Core layers from @deck.gl/layers
 import {
     ArcLayer,
@@ -112,20 +114,57 @@ export function getRegisteredLayerTypes() {
 
 /**
  * Parse accessor string with @@= prefix to a function
- * Supports property path syntax like "@@=properties.value" or "@@=coordinates[0]"
+ * Supports:
+ * - Simple property path: "@@=properties.value" or "@@=coordinates[0]"
+ * - Complex expressions: "@@=properties.count > 50 ? [255,0,0] : [0,0,255]"
+ * - Color scale accessor: "@@scale(viridis, properties.count)" (handled separately)
  * @param {*} value - The value to parse (may be a string with @@= prefix or any other value)
- * @returns {*} A function if @@= syntax detected, otherwise the original value
+ * @returns {*} A function if @@= syntax detected, @@scale string preserved, otherwise the original value
  */
 export function parseAccessor(value) {
     if (typeof value !== 'string') {
         return value;
     }
+    // Check for @@scale accessor - preserve as-is, will be resolved with data context
+    if (isScaleAccessor(value)) {
+        return value; // Return as-is, will be resolved in createLayer with data context
+    }
     // Check for @@= accessor syntax
     if (value.startsWith('@@=')) {
-        const path = value.slice(3); // Remove '@@=' prefix
-        return createAccessorFunction(path);
+        const expr = value.slice(3); // Remove '@@=' prefix
+        // Check if this is a complex expression (contains operators) or simple path
+        if (/[?:<>=!&|+\-*/%]/.test(expr)) {
+            return createExpressionFunction(expr);
+        }
+        return createAccessorFunction(expr);
     }
     return value;
+}
+
+/**
+ * Create an accessor function from a JavaScript expression
+ * @param {string} expr - JavaScript expression like "properties.count > 50 ? [255,0,0] : [0,0,255]"
+ * @returns {Function} Accessor function that evaluates the expression with the object
+ */
+function createExpressionFunction(expr) {
+    // Create a function that evaluates the expression with the object's properties in scope
+    // We use 'with' semantics by wrapping in a function that destructures common patterns
+    try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function('d', `
+            const properties = d.properties || {};
+            const coordinates = d.coordinates || d.geometry?.coordinates || [];
+            try {
+                return ${expr};
+            } catch(e) {
+                return undefined;
+            }
+        `);
+        return (object) => fn(object);
+    } catch (e) {
+        console.warn('Failed to parse accessor expression:', expr, e);
+        return () => undefined;
+    }
 }
 
 /**
@@ -170,6 +209,34 @@ export function parseLayerConfig(config) {
         }
     }
     return parsed;
+}
+
+/**
+ * Resolve @@scale accessors in parsed props using data context
+ * @param {Object} props - Parsed layer props (may contain @@scale strings)
+ * @param {Array|Object} data - Layer data (array or GeoJSON)
+ * @returns {Object} Props with @@scale strings resolved to accessor functions
+ */
+function resolveScaleAccessors(props, data) {
+    // Get the actual data array (handle GeoJSON FeatureCollection)
+    let dataArray = data;
+    if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+        dataArray = data.features;
+    }
+    if (!Array.isArray(dataArray)) {
+        return props; // Can't compute domain without array data
+    }
+
+    const resolved = { ...props };
+    for (const [key, value] of Object.entries(props)) {
+        if (isScaleAccessor(value)) {
+            const scaleConfig = parseScaleAccessor(value);
+            if (scaleConfig) {
+                resolved[key] = createColorScaleAccessor(scaleConfig, dataArray);
+            }
+        }
+    }
+    return resolved;
 }
 
 /**
@@ -241,7 +308,12 @@ export function createLayer(config) {
         return null;
     }
     // Parse accessors in the config
-    const parsedProps = parseLayerConfig(layerProps);
+    let parsedProps = parseLayerConfig(layerProps);
+
+    // Resolve @@scale accessors using data context
+    if (parsedProps.data) {
+        parsedProps = resolveScaleAccessors(parsedProps, parsedProps.data);
+    }
 
     // Special handling for TileLayer with raster tiles
     if (typeName === 'TileLayer' && isRasterTileUrl(parsedProps.data)) {
@@ -270,5 +342,8 @@ export function createLayers(configs) {
     }
     return configs.map(config => createLayer(config)).filter(layer => layer !== null);
 }
+
+// Re-export color scale utilities for external use
+export { AVAILABLE_SCALES, colorRangeFromScale } from './colorScales';
 
 export default LAYER_REGISTRY;
