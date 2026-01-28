@@ -6,7 +6,8 @@ This example tests rendering performance with:
 - HexagonLayer (aggregation): 10k, 20k, 40k, 100k point layers
 - BitmapLayer: image overlay
 
-All layers start invisible and can be toggled via checkboxes.
+HexagonLayers demonstrate independent layer updates - each has its own callback
+that updates only that layer's data, simulating real-world app structure.
 
 Requirements:
     pip install h3  # or: poetry install -E test
@@ -16,7 +17,7 @@ import json
 import os
 import random
 from pathlib import Path
-from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update
+from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update, ALL, MATCH
 
 from deckgl_dash import DeckGL, ColorScale, color_range_from_scale
 from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
@@ -48,15 +49,11 @@ LAYER_SIZES = [10_000, 20_000, 40_000, 100_000]
 
 
 def generate_h3_hexagons(count: int, center_lat: float, center_lon: float, resolution: int = 10) -> dict:
-    """Generate GeoJSON FeatureCollection with H3 hexagons.
-
-    Generates random points in expanding radius until we have enough unique hexagons.
-    """
+    """Generate GeoJSON FeatureCollection with H3 hexagons."""
     hexagons = set()
-    radius = 0.1  # Start with ~10km radius (in degrees)
+    radius = 0.1
 
     while len(hexagons) < count:
-        # Generate random points and get their H3 index
         for _ in range(count * 2):
             lat = center_lat + random.uniform(-radius, radius)
             lon = center_lon + random.uniform(-radius, radius)
@@ -64,19 +61,14 @@ def generate_h3_hexagons(count: int, center_lat: float, center_lon: float, resol
             hexagons.add(h3_index)
             if len(hexagons) >= count:
                 break
-        radius *= 1.5  # Expand search area if needed
+        radius *= 1.5
 
-    # Convert to list and trim to exact count
     hexagon_list = list(hexagons)[:count]
-
-    # Convert to GeoJSON features with random count values
     features = []
     for h3_index in hexagon_list:
         boundary = h3.cell_to_boundary(h3_index)
-        # h3 returns (lat, lng) tuples, GeoJSON needs [lng, lat]
         coordinates = [[lng, lat] for lat, lng in boundary]
-        coordinates.append(coordinates[0])  # Close the polygon
-
+        coordinates.append(coordinates[0])
         features.append({
             "type": "Feature",
             "properties": {"h3_index": h3_index, "count": random.randint(1, 100)},
@@ -95,11 +87,10 @@ def generate_random_points(count: int, center_lat: float, center_lon: float, rad
 
 
 # Pre-generate all data at startup
-# In debug mode, Flask runs the module twice (main + reloader), so we only print in one
 H3_DATA = {}
 POINT_DATA = {}
 _is_reloader = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
-_verbose = not _is_reloader  # Only print in main process
+_verbose = not _is_reloader
 
 if _verbose:
     print("Generating test data (this may take a moment for larger datasets)...")
@@ -121,16 +112,15 @@ for size in LAYER_SIZES:
 if _verbose:
     print("Data generation complete.")
 
-# Color range for HexagonLayer using viridis scale (same as GeoJsonLayer for consistency)
+# Color range for HexagonLayer
 COLOR_RANGE = color_range_from_scale('viridis', 6)
 
 app = Dash(__name__)
 
-# Create layer definitions - only include data for VISIBLE layers to reduce payload
-def create_layers(visible_layers: set, extruded_3d: bool = True) -> list:
-    """Create layers - only visible layers include their data to minimize transfer size."""
-    layers = [
-        # Base map (always visible)
+
+def create_base_layers() -> list:
+    """Create base layers that are always present."""
+    return [
         TileLayer(
             id = "osm-tiles",
             data = "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -138,8 +128,10 @@ def create_layers(visible_layers: set, extruded_3d: bool = True) -> list:
         ),
     ]
 
-    # H3 GeoJSON layers - only add if visible
-    # Using @@scale for data-driven color mapping (viridis scale, auto-domain from data)
+
+def create_geojson_layers(visible_layers: set) -> list:
+    """Create H3 GeoJSON layers - only visible ones include data."""
+    layers = []
     geojson_color_scale = ColorScale('viridis').domain(1, 100).alpha(180).accessor('properties.count')
 
     for size in LAYER_SIZES:
@@ -159,61 +151,60 @@ def create_layers(visible_layers: set, extruded_3d: bool = True) -> list:
                     highlight_color = [255, 255, 0, 180],
                 )
             )
-
-    # HexagonLayer (aggregation) layers - only add if visible
-    for size in LAYER_SIZES:
-        layer_id = f"agg-{size // 1000}k"
-        if layer_id in visible_layers:
-            layers.append(
-                HexagonLayer(
-                    id = layer_id,
-                    data = POINT_DATA[size],
-                    get_position = "@@=coordinates",
-                    radius = 100,  # ~100m radius to approximate H3 res 10 size
-                    elevation_scale = 50 if extruded_3d else 0,
-                    extruded = extruded_3d,
-                    color_range = COLOR_RANGE,
-                    color_aggregation = "SUM",  # Use sum of points for color
-                    get_color_weight = 1,  # Each point contributes 1 to the count
-                    lower_percentile = 0,  # Include all bins in color scale
-                    upper_percentile = 100,
-                    pickable = True,
-                    auto_highlight = True,
-                    highlight_color = [255, 255, 0, 180],  # Yellow highlight
-                )
-            )
-
-    # Bitmap layer for image overlay - only add if visible
-    if "image-overlay" in visible_layers:
-        layers.append(
-            BitmapLayer(
-                id = "image-overlay",
-                image = IMAGE_DATA_URL,
-                bounds = IMAGE_BOUNDS,
-                opacity = 0.8,
-            )
-        )
-
     return layers
 
 
-# Initial visible layers (none)
+def create_hexagon_layer(size: int, data: list, extruded_3d: bool = False) -> dict:
+    """Create a single HexagonLayer configuration."""
+    return HexagonLayer(
+        id = f"agg-{size // 1000}k",
+        data = data,
+        get_position = "@@=coordinates",
+        radius = 100,
+        elevation_scale = 50 if extruded_3d else 0,
+        extruded = extruded_3d,
+        color_range = COLOR_RANGE,
+        color_aggregation = "SUM",
+        get_color_weight = 1,
+        lower_percentile = 0,
+        upper_percentile = 100,
+        pickable = len(data) > 0,
+        auto_highlight = len(data) > 0,
+        highlight_color = [255, 255, 0, 180],
+    )
+
+
+def create_bitmap_layer(visible: bool) -> list:
+    """Create bitmap layer if visible."""
+    if visible:
+        return [BitmapLayer(
+            id = "image-overlay",
+            image = IMAGE_DATA_URL,
+            bounds = IMAGE_BOUNDS,
+            opacity = 0.8,
+        )]
+    return []
+
+
+# Initial state
 INITIAL_VISIBLE = set()
 
 app.layout = html.Div([
     html.H1("deckgl-dash Performance Test"),
-    html.P("Toggle layers to test rendering performance. Monitor browser console and FPS."),
+    html.P("Toggle layers to test rendering performance. HexagonLayers have independent callbacks."),
 
     # Layer toggle controls
     html.Div([
         html.Div([
             html.H4("H3 Hexagons (GeoJSON)"),
+            html.P("(rebuilds all layers)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
             *[dcc.Checklist(id = f"toggle-h3-{size // 1000}k", options = [{"label": f" {size // 1000}k hexagons", "value": f"h3-{size // 1000}k"}], value = [], inline = True) for size in LAYER_SIZES],
         ], style = {"display": "inline-block", "verticalAlign": "top", "marginRight": "40px"}),
 
         html.Div([
             html.H4("HexagonLayer (Aggregation)"),
-            *[dcc.Checklist(id = f"toggle-agg-{size // 1000}k", options = [{"label": f" {size // 1000}k points", "value": f"agg-{size // 1000}k"}], value = [], inline = True) for size in LAYER_SIZES],
+            html.P("(independent callbacks)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
+            *[dcc.Checklist(id = {"type": "toggle-agg", "size": size}, options = [{"label": f" {size // 1000}k points", "value": "visible"}], value = [], inline = True) for size in LAYER_SIZES],
         ], style = {"display": "inline-block", "verticalAlign": "top", "marginRight": "40px"}),
 
         html.Div([
@@ -227,13 +218,19 @@ app.layout = html.Div([
         ], style = {"display": "inline-block", "verticalAlign": "top"}),
     ], style = {"marginBottom": "20px", "padding": "10px", "backgroundColor": "#f5f5f5", "borderRadius": "5px"}),
 
-    # Store for visible layers
-    dcc.Store(id = "visible-layers", data = list(INITIAL_VISIBLE)),
+    # Stores for H3/GeoJSON visibility (combined) and image visibility
+    dcc.Store(id = "visible-h3-layers", data = []),
+    dcc.Store(id = "visible-image", data = False),
+    dcc.Store(id = "mode-3d", data = "2d"),
+
+    # Individual stores for each HexagonLayer's data - THIS IS THE KEY PATTERN
+    # Each HexagonLayer has its own store, updated by its own callback
+    *[dcc.Store(id = {"type": "hexagon-data", "size": size}, data = []) for size in LAYER_SIZES],
 
     # Map
     DeckGL(
         id = "map",
-        layers = process_layers(create_layers(INITIAL_VISIBLE)),
+        layers = process_layers(create_base_layers()),
         initial_view_state = {"longitude": CENTER_LON, "latitude": CENTER_LAT, "zoom": 10, "pitch": 0, "bearing": 0},
         controller = {"dragRotate": False, "touchRotate": False, "keyboard": {"rotateKey": False}},
         tooltip = {
@@ -249,50 +246,111 @@ app.layout = html.Div([
     html.Div([
         html.H4("Performance Notes:"),
         html.Ul([
-            html.Li("H3 hexagons are rendered as GeoJSON polygon features - tests feature rendering capability"),
-            html.Li("HexagonLayer uses GPU aggregation - typically more efficient for large point datasets"),
-            html.Li("Watch browser DevTools Performance tab and GPU usage"),
-            html.Li("Enable layers incrementally to see performance impact"),
+            html.Li("H3 GeoJSON toggles rebuild all layers (traditional pattern)"),
+            html.Li("HexagonLayer toggles update only their own data store (independent callback pattern)"),
+            html.Li("Watch browser DevTools Network tab to see payload sizes"),
+            html.Li("Independent callbacks allow different parts of an app to manage their own layers"),
         ])
     ], style = {"marginTop": "20px"}),
 ])
 
 
-# Collect all toggle inputs
-TOGGLE_IDS = [f"toggle-h3-{size // 1000}k" for size in LAYER_SIZES] + [f"toggle-agg-{size // 1000}k" for size in LAYER_SIZES] + ["toggle-image"]
-
+# --- Independent callbacks for each HexagonLayer ---
+# This is the key pattern: each layer has its own callback that updates only its data
 
 @callback(
-    Output("visible-layers", "data"),
-    [Input(tid, "value") for tid in TOGGLE_IDS],
-    prevent_initial_call = True,  # Don't fire on initial page load
+    Output({"type": "hexagon-data", "size": MATCH}, "data"),
+    Input({"type": "toggle-agg", "size": MATCH}, "value"),
+    State({"type": "toggle-agg", "size": MATCH}, "id"),
+    prevent_initial_call = True,
 )
-def update_visible_layers(*toggle_values):
-    """Combine all checkbox values into a single list of visible layer IDs."""
+def update_hexagon_data(toggle_value, toggle_id):
+    """Update a single HexagonLayer's data when its toggle changes.
+
+    This callback only updates ONE layer's data store - demonstrating
+    independent layer updates without affecting other layers.
+    """
+    size = toggle_id["size"]
+    is_visible = "visible" in (toggle_value or [])
+
+    if is_visible:
+        print(f"[Callback] Loading data for agg-{size // 1000}k ({size:,} points)")
+        return POINT_DATA[size]
+    else:
+        print(f"[Callback] Clearing data for agg-{size // 1000}k")
+        return []
+
+
+# --- Callbacks for H3/GeoJSON layers (traditional pattern) ---
+
+@callback(
+    Output("visible-h3-layers", "data"),
+    [Input(f"toggle-h3-{size // 1000}k", "value") for size in LAYER_SIZES],
+    prevent_initial_call = True,
+)
+def update_h3_visibility(*toggle_values):
+    """Combine H3 checkbox values into visibility list."""
     visible = []
     for values in toggle_values:
         visible.extend(values or [])
+    print(f"[Callback] H3 visibility changed: {visible}")
     return visible
 
 
-# Store for current 3D mode to detect changes
-_last_3d_mode = {"value": "2d"}
+@callback(
+    Output("visible-image", "data"),
+    Input("toggle-image", "value"),
+    prevent_initial_call = True,
+)
+def update_image_visibility(value):
+    """Update image visibility."""
+    visible = "image-overlay" in (value or [])
+    print(f"[Callback] Image visibility: {visible}")
+    return visible
 
 
 @callback(
-    Output("map", "layers"),
-    Input("visible-layers", "data"),
+    Output("mode-3d", "data"),
     Input("toggle-3d", "value"),
     prevent_initial_call = True,
 )
-def update_layers(visible_layers, mode_3d):
-    """Update map layers when visibility or 3D mode changes."""
-    visible_set = set(visible_layers or [])
+def update_3d_mode(value):
+    """Update 3D mode."""
+    print(f"[Callback] 3D mode: {value}")
+    return value
+
+
+# --- Main layers aggregation callback ---
+
+@callback(
+    Output("map", "layers"),
+    Input("visible-h3-layers", "data"),
+    Input("visible-image", "data"),
+    Input("mode-3d", "data"),
+    [Input({"type": "hexagon-data", "size": size}, "data") for size in LAYER_SIZES],
+    prevent_initial_call = True,
+)
+def aggregate_layers(h3_visible, image_visible, mode_3d, *hexagon_data_list):
+    """Aggregate all layer sources into the final layers array.
+
+    This callback fires when any input changes, but each HexagonLayer's
+    data comes from its own store (updated by its own independent callback).
+    """
     extruded = mode_3d == "3d"
-    print(f"Updating layers: {visible_set}, 3D={extruded}")
-    layers = process_layers(create_layers(visible_set, extruded_3d = extruded))
-    print(f"  Sending {len(layers)} layers")
-    return layers
+
+    # Build layers
+    layers = create_base_layers()
+    layers.extend(create_geojson_layers(set(h3_visible or [])))
+
+    # Add HexagonLayers - data comes from individual stores
+    for i, size in enumerate(LAYER_SIZES):
+        data = hexagon_data_list[i] or []
+        layers.append(create_hexagon_layer(size, data, extruded))
+
+    layers.extend(create_bitmap_layer(image_visible))
+
+    print(f"[Callback] Aggregating layers: {len(layers)} total, H3={h3_visible}, image={image_visible}")
+    return process_layers(layers)
 
 
 @callback(
