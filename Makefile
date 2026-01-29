@@ -4,7 +4,7 @@
 #   make          - Build minified production version
 #   make dev      - Build non-minified development version
 #   make clean    - Remove build artifacts
-#   make release VERSION=x.y.z - Clean, build, and tag for release
+#   make release VERSION=x.y.z - Verify clean tree and tag for release
 #
 
 .PHONY: all build dev clean release check-git check-version quality
@@ -61,8 +61,9 @@ check-version:
 	fi
 	@echo "Release version: $(VERSION)"
 
-# Release target - check git, clean, build, and tag
-release: check-version check-git clean build
+# Release target - verify clean tree and tag
+# Run "make build" and commit before releasing
+release: check-version check-git
 	@echo ""
 	@echo "Creating git tag v$(VERSION)..."
 	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
