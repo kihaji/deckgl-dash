@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deckgl-dash"
-version = "0.2.0"
+version = "0.3.5"
 description = "Direct deck.gl wrapper for Plotly Dash"
 authors = ["Scott"]
 readme = "README.md"
