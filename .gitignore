@@ -283,3 +283,18 @@ JuliaManifest.toml
 CLAUDE.md
 DeckGL_Wrapper.md
 .claude/
+
+# Backup files
+*.bak
+
+# Auto-generated R and Julia bindings (Dash build tooling)
+R/
+man/
+inst/
+deps/
+.Rbuildignore
+DESCRIPTION
+NAMESPACE
+Project.toml
+src/DeckglDash.jl
+src/jl/

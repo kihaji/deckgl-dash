@@ -4,13 +4,10 @@ import typing  # noqa: F401
 from typing_extensions import TypedDict, NotRequired, Literal # noqa: F401
 from dash.development.base_component import Component, _explicitize_args
 
+ComponentSingleType = typing.Union[str, int, float, Component, None]
 ComponentType = typing.Union[
-    str,
-    int,
-    float,
-    Component,
-    None,
-    typing.Sequence[typing.Union[str, int, float, Component, None]],
+    ComponentSingleType,
+    typing.Sequence[ComponentSingleType],
 ]
 
 NumberType = typing.Union[
@@ -20,9 +17,7 @@ NumberType = typing.Union[
 
 class DeckGL(Component):
     """A DeckGL component.
-DeckGL component for Plotly Dash
-A high-performance WebGL-powered visualization component wrapping deck.gl
-Supports all deck.gl layer types via JSON configuration
+
 
 Keyword arguments:
 
@@ -68,6 +63,35 @@ Keyword arguments:
     Array of layer configurations. Each layer should have a '@@type'
     property specifying the layer type (e.g., 'GeoJsonLayer',
     'TileLayer'). Supports all deck.gl layer types.
+
+- mapStyleLoaded (boolean; optional):
+    (Output) Indicates when the MapLibre style has finished loading.
+    Useful for knowing when custom sources/layers can be added.
+
+- maplibreConfig (dict; optional):
+    MapLibre GL JS configuration. When provided, renders MapLibre as
+    the base map with deck.gl layers as overlays via MapboxOverlay.
+    Shape: - style: string | object - Style URL or inline MapLibre
+    style spec (required) - sources: object - Additional sources {id:
+    sourceSpec} - mapLayers: array - Additional MapLibre layers -
+    interleaved: bool - Enable deck.gl layer interleaving (default:
+    True) - attributionControl: bool - Show attribution control
+    (default: True) - mapOptions: object - Additional MapLibre Map
+    options.
+
+    `maplibreConfig` is a dict with keys:
+
+    - style (string | dict; optional)
+
+    - sources (dict; optional)
+
+    - mapLayers (list of dicts; optional)
+
+    - interleaved (boolean; optional)
+
+    - attributionControl (boolean; optional)
+
+    - mapOptions (dict; optional)
 
 - tooltip (boolean | dict; default False):
     Tooltip configuration. Can be: - False: No tooltip (default) -
@@ -115,6 +139,18 @@ Keyword arguments:
         }
     )
 
+    MaplibreConfig = TypedDict(
+        "MaplibreConfig",
+            {
+            "style": NotRequired[typing.Union[str, dict]],
+            "sources": NotRequired[dict],
+            "mapLayers": NotRequired[typing.Sequence[dict]],
+            "interleaved": NotRequired[bool],
+            "attributionControl": NotRequired[bool],
+            "mapOptions": NotRequired[dict]
+        }
+    )
+
 
     def __init__(
         self,
@@ -126,13 +162,15 @@ Keyword arguments:
         enableEvents: typing.Optional[typing.Union[bool, typing.Sequence[str]]] = None,
         tooltip: typing.Optional[typing.Union[bool, dict]] = None,
         style: typing.Optional[typing.Any] = None,
+        maplibreConfig: typing.Optional["MaplibreConfig"] = None,
+        mapStyleLoaded: typing.Optional[bool] = None,
         clickInfo: typing.Optional[dict] = None,
         hoverInfo: typing.Optional[dict] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

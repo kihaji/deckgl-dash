@@ -5,6 +5,10 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from .DeckGL import DeckGL as _DeckGLBase
 from .layers.base import BaseLayer, process_layers
 
+# Re-export the base component so __init__.py doesn't need to import from .DeckGL directly,
+# which causes Pyright to shadow the DeckGL class with the DeckGL.py module.
+DeckGLBase = _DeckGLBase
+
 
 class DeckGL(_DeckGLBase):
     """DeckGL component for Plotly Dash with Python layer helper support.
@@ -47,6 +51,8 @@ class DeckGL(_DeckGLBase):
         enable_events: Event opt-in (False, True, or list like ['click', 'hover']).
         tooltip: Tooltip config (False, True, or dict with html/style).
         style: CSS styles for the container.
+        maplibre_config: MapLibre GL JS configuration for basemap rendering.
+        map_style_loaded: (Output) True when MapLibre style has finished loading.
         click_info: (Output) Last clicked feature info.
         hover_info: (Output) Currently hovered feature info.
     """
@@ -61,6 +67,8 @@ class DeckGL(_DeckGLBase):
         enable_events: Optional[Union[bool, Sequence[str]]] = None,
         tooltip: Optional[Union[bool, dict]] = None,
         style: Optional[Any] = None,
+        maplibre_config: Optional[Dict[str, Any]] = None,
+        map_style_loaded: Optional[bool] = None,
         click_info: Optional[dict] = None,
         hover_info: Optional[dict] = None,
         **kwargs
@@ -73,12 +81,14 @@ class DeckGL(_DeckGLBase):
         super().__init__(
             id = id,
             layers = processed_layers,
-            initialViewState = initial_view_state,
-            viewState = view_state,
+            initialViewState = initial_view_state,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any] for ergonomics
+            viewState = view_state,  # type: ignore[arg-type]
             controller = controller,
             enableEvents = enable_events,
             tooltip = tooltip,
             style = style,
+            maplibreConfig = maplibre_config,  # type: ignore[arg-type]
+            mapStyleLoaded = map_style_loaded,
             clickInfo = click_info,
             hoverInfo = hover_info,
             **kwargs

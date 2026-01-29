@@ -39,6 +39,9 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Run Pyright type checker
+        run: poetry run npx pyright deckgl_dash/ examples/
+
       - name: Run Python tests
         run: poetry run pytest tests/ -v
 

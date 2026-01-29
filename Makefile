@@ -7,7 +7,7 @@
 #   make release VERSION=x.y.z - Clean, build, and tag for release
 #
 
-.PHONY: all build dev clean release check-git check-version
+.PHONY: all build dev clean release check-git check-version quality
 
 # Default target - build production version
 all: build
@@ -33,6 +33,13 @@ clean:
 	rm -f deckgl_dash/deckgl_dash.dev.js
 	rm -f deckgl_dash/deckgl_dash.dev.js.map
 	@echo "Clean complete"
+
+# Run code quality checks with Pyright
+quality:
+	@echo "Running Pyright type checker..."
+	poetry run npx pyright deckgl_dash/ examples/
+	@echo ""
+	@echo "Quality check complete."
 
 # Check if git working directory is clean
 check-git:

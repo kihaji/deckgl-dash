@@ -23,8 +23,11 @@
     "@deck.gl/geo-layers": "^9.1.0",
     "@deck.gl/aggregation-layers": "^9.1.0",
     "@deck.gl/react": "^9.1.0",
+    "@deck.gl/mapbox": "^9.1.0",
     "@luma.gl/core": "^9.1.0",
-    "@luma.gl/webgl": "^9.1.0"
+    "@luma.gl/webgl": "^9.1.0",
+    "chroma-js": "^2.4.2",
+    "maplibre-gl": "^4.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.1",

@@ -27,20 +27,22 @@ import json
 import dash as _dash
 
 # Import the wrapped DeckGL component (supports Python layer helpers)
-# Use explicit re-export to avoid Pylance confusing class with DeckGL.py module
+# Import DeckGLBase from component.py (not .DeckGL) to prevent Pyright from
+# shadowing the DeckGL class with the DeckGL.py module name.
 from .component import DeckGL as DeckGL
-
-# Also expose the base component for advanced use cases
-from .DeckGL import DeckGL as DeckGLBase
+from .component import DeckGLBase as DeckGLBase
 
 # Import layers module for convenience
 from . import layers
+
+# Import maplibre module for MapLibre GL JS integration
+from . import maplibre
 
 # Import color scale utilities
 from .colors import ColorScale, color_range_from_scale, AVAILABLE_SCALES
 
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '

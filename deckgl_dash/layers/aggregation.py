@@ -33,7 +33,7 @@ class HeatmapLayer(BaseLayer):
         intensity: Optional[float] = None,
         threshold: Optional[float] = None,
         # Color scale
-        color_range: Optional[List[ColorValue]] = None,
+        color_range: Optional[Sequence[ColorValue]] = None,
         color_domain: Optional[List[float]] = None,
         # Aggregation
         aggregation: Optional[str] = None,  # 'SUM' | 'MEAN'
@@ -100,7 +100,7 @@ class HexagonLayer(BaseLayer):
         elevation_scale: Optional[float] = None,
         elevation_range: Optional[List[float]] = None,
         # Color settings
-        color_range: Optional[List[ColorValue]] = None,
+        color_range: Optional[Sequence[ColorValue]] = None,
         color_domain: Optional[List[float]] = None,
         color_scale_type: Optional[str] = None,  # 'quantize' | 'quantile' | 'ordinal'
         # Weight accessors
@@ -191,7 +191,7 @@ class GridLayer(BaseLayer):
         elevation_scale: Optional[float] = None,
         elevation_range: Optional[List[float]] = None,
         # Color settings
-        color_range: Optional[List[ColorValue]] = None,
+        color_range: Optional[Sequence[ColorValue]] = None,
         color_domain: Optional[List[float]] = None,
         color_scale_type: Optional[str] = None,
         # Weight accessors

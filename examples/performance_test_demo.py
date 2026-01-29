@@ -154,7 +154,7 @@ def create_geojson_layers(visible_layers: set) -> list:
     return layers
 
 
-def create_hexagon_layer(size: int, data: list, extruded_3d: bool = False) -> dict:
+def create_hexagon_layer(size: int, data: list, extruded_3d: bool = False) -> HexagonLayer:
     """Create a single HexagonLayer configuration."""
     return HexagonLayer(
         id = f"agg-{size // 1000}k",
