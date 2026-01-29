@@ -61,8 +61,8 @@ check-version:
 	fi
 	@echo "Release version: $(VERSION)"
 
-# Release target - clean, check git, build, and tag
-release: check-version clean check-git build
+# Release target - check git, clean, build, and tag
+release: check-version check-git clean build
 	@echo ""
 	@echo "Creating git tag v$(VERSION)..."
 	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
