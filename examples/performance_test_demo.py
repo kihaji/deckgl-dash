@@ -23,7 +23,7 @@ from deckgl_dash import DeckGL, ColorScale, color_range_from_scale
 from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
 
 try:
-    import h3
+    import h3  # type: ignore[reportMissingImports]
 except ImportError:
     raise ImportError("h3 is required for this demo. Install with: pip install h3")
 
