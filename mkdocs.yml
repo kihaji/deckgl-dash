@@ -1,0 +1,64 @@
+site_name: deckgl-dash
+site_description: Direct deck.gl wrapper for Plotly Dash — high-performance WebGL-powered visualization
+site_url: https://kihaji.github.io/deckgl-dash/
+repo_name: kihaji/deckgl-dash
+repo_url: https://github.com/kihaji/deckgl-dash
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Guides:
+      - MapLibre Integration: guides/maplibre-integration.md
+  - API Reference:
+      - DeckGL Component: api/deckgl-component.md
+      - Core Layers: api/core-layers.md
+      - Geo Layers: api/geo-layers.md
+      - Aggregation Layers: api/aggregation-layers.md
+      - MapLibre: api/maplibre.md
+      - Color Scales: api/colors.md
+  - Troubleshooting:
+      - Gotchas: troubleshooting/gotchas.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - minify:
+      minify_html: true

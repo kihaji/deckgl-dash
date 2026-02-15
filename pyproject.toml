@@ -36,6 +36,11 @@ pytest = "^8.0.0"
 dash = {extras = ["testing"], version = ">=2.0.0"}
 pyyaml = "^6.0.3"
 
+[tool.poetry.group.docs.dependencies]
+mkdocs-material = "^9.0"
+pymdown-extensions = "^10.0"
+mkdocs-minify-plugin = "^0.8"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

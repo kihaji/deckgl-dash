@@ -5,9 +5,11 @@
 #   make dev      - Build non-minified development version
 #   make clean    - Remove build artifacts
 #   make release VERSION=x.y.z - Verify clean tree and tag for release
+#   make docs-serve  - Serve docs locally at http://127.0.0.1:8000
+#   make docs-build  - Build docs with strict mode
 #
 
-.PHONY: all build dev clean release check-git check-version quality
+.PHONY: all build dev clean release check-git check-version quality docs-serve docs-build
 
 # Default target - build production version
 all: build
@@ -75,3 +77,11 @@ release: check-version check-git
 	@echo "To publish, run:"
 	@echo "  git push && git push --tags"
 	@echo ""
+
+# Serve documentation locally
+docs-serve:
+	poetry run mkdocs serve
+
+# Build documentation with strict mode (catches broken links/warnings)
+docs-build:
+	poetry run mkdocs build --strict
