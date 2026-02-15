@@ -12,6 +12,7 @@ Common issues and their fixes.
 | Log scale fails | Colors don't render | Log requires positive values (min > 0) |
 | TileLayer blank | No tiles visible | Check URL has `{z}/{x}/{y}` placeholders |
 | Hex colors ignored in JSON mode | Colors don't apply | Use `[r, g, b]` arrays in JSON dicts; hex strings only work with Python helpers |
+| View state resets on basemap change | Map jumps to initial position when switching styles | Update `maplibre_config` prop, don't recreate the DeckGL component |
 
 ---
 
@@ -120,3 +121,27 @@ Python helper classes automatically convert hex strings (`'#FF8C00'`) to `[r, g,
     ```python
     {'@@type': 'GeoJsonLayer', 'id': 'data', 'data': geojson, 'getFillColor': [255, 140, 0]}
     ```
+
+### View State Resets on Basemap Change
+
+When switching basemap styles, update the `maplibre_config` prop on the existing DeckGL component. Do **not** recreate the entire component in a callback — that destroys the map and resets the view to `initial_view_state`.
+
+=== "Correct — update the prop"
+
+    ```python
+    # Callback targets the component's maplibre_config prop
+    @callback(Output('map', 'maplibreConfig'), Input('style-picker', 'value'))
+    def switch_style(style_url):
+        return MapLibreConfig(style=style_url).to_dict()
+    ```
+
+=== "Incorrect — recreates the component"
+
+    ```python
+    # Callback returns a new DeckGL(...) — view state is lost!
+    @callback(Output('map-container', 'children'), Input('style-picker', 'value'))
+    def switch_style(style_url):
+        return DeckGL(id='map', maplibre_config=MapLibreConfig(style=style_url).to_dict(), ...)
+    ```
+
+See the [Switching Basemap Styles](../guides/maplibre-integration.md#switching-basemap-styles) guide for a full example.

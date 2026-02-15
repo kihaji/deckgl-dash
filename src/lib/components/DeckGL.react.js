@@ -47,6 +47,7 @@ const DeckGL = ({
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
     const overlayRef = useRef(null);
+    const mapViewStateRef = useRef(null);
 
     // Internal view state for uncontrolled mode
     const [internalViewState, setInternalViewState] = useState(initialViewState);
@@ -187,14 +188,15 @@ const DeckGL = ({
             return;
         }
 
-        // Create MapLibre map
+        // Create MapLibre map — prefer saved view state (from prior style) over initial
+        const effectiveViewState = mapViewStateRef.current || currentViewState;
         const mapOptions = {
             container: mapContainerRef.current,
             style: maplibreConfig.style || { version: 8, sources: {}, layers: [] },
-            center: [currentViewState.longitude, currentViewState.latitude],
-            zoom: currentViewState.zoom,
-            pitch: currentViewState.pitch || 0,
-            bearing: currentViewState.bearing || 0,
+            center: [effectiveViewState.longitude, effectiveViewState.latitude],
+            zoom: effectiveViewState.zoom,
+            pitch: effectiveViewState.pitch || 0,
+            bearing: effectiveViewState.bearing || 0,
             attributionControl: maplibreConfig.attributionControl !== false,
             ...(maplibreConfig.mapOptions || {}),
         };
@@ -247,7 +249,17 @@ const DeckGL = ({
         // MapLibre handles its own view state - we only report to Dash when movement ends
         map.on('moveend', () => {
             debugLog('map.moveend event', { isUpdating: isUpdatingViewRef.current, enableEvents });
-            // Skip if this was triggered by programmatic update
+            // Always capture the current camera position so it survives style changes
+            const center = map.getCenter();
+            mapViewStateRef.current = {
+                longitude: center.lng,
+                latitude: center.lat,
+                zoom: map.getZoom(),
+                pitch: map.getPitch(),
+                bearing: map.getBearing(),
+            };
+
+            // Skip Dash callback if this was triggered by programmatic update
             if (isUpdatingViewRef.current) {
                 isUpdatingViewRef.current = false;
                 return;
@@ -256,21 +268,23 @@ const DeckGL = ({
             // Fire Dash callback if viewStateChange events are enabled
             if (isEventEnabled('viewStateChange', enableEvents) && setProps) {
                 debugLog('map.moveend: calling setProps');
-                const center = map.getCenter();
-                setProps({
-                    viewState: {
-                        longitude: center.lng,
-                        latitude: center.lat,
-                        zoom: map.getZoom(),
-                        pitch: map.getPitch(),
-                        bearing: map.getBearing(),
-                    },
-                });
+                setProps({ viewState: mapViewStateRef.current });
             }
         });
 
-        // Cleanup on unmount
+        // Cleanup on unmount or style change
         return () => {
+            // Snapshot the camera position before destroying the map
+            if (mapRef.current) {
+                const center = mapRef.current.getCenter();
+                mapViewStateRef.current = {
+                    longitude: center.lng,
+                    latitude: center.lat,
+                    zoom: mapRef.current.getZoom(),
+                    pitch: mapRef.current.getPitch(),
+                    bearing: mapRef.current.getBearing(),
+                };
+            }
             if (overlayRef.current) {
                 overlayRef.current.finalize();
                 overlayRef.current = null;

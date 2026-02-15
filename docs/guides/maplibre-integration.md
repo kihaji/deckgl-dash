@@ -154,6 +154,46 @@ config = MapLibreConfig(
 )
 ```
 
+## Switching Basemap Styles
+
+You can dynamically change the basemap style via a Dash callback by updating the `maplibre_config` prop. The component preserves the user's current pan/zoom/pitch/bearing across style changes automatically.
+
+!!! tip "Update the prop, don't recreate the component"
+    Target the DeckGL component's `maplibre_config` prop directly. Do **not** recreate the entire `DeckGL(...)` component in the callback — that destroys and rebuilds everything from scratch.
+
+```python
+from dash import Dash, html, dcc, callback, Output, Input
+from deckgl_dash import DeckGL
+from deckgl_dash.maplibre import MapLibreConfig, MapLibreStyle
+
+app = Dash(__name__)
+app.layout = html.Div([
+    dcc.Dropdown(
+        id='style-picker',
+        options=[
+            {'label': 'Positron', 'value': MapLibreStyle.CARTO_POSITRON},
+            {'label': 'Dark Matter', 'value': MapLibreStyle.CARTO_DARK_MATTER},
+            {'label': 'Voyager', 'value': MapLibreStyle.CARTO_VOYAGER},
+        ],
+        value=MapLibreStyle.CARTO_POSITRON,
+        clearable=False,
+    ),
+    DeckGL(
+        id='map',
+        maplibre_config=MapLibreConfig(style=MapLibreStyle.CARTO_POSITRON).to_dict(),
+        layers=[...],
+        initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11},
+        style={'width': '100%', 'height': '600px'},
+    ),
+])
+
+@callback(Output('map', 'maplibreConfig'), Input('style-picker', 'value'))
+def switch_style(style_url):
+    return MapLibreConfig(style=style_url).to_dict()
+```
+
+See `examples/maplibre_basemap_switch_demo.py` for a full working example.
+
 ## Interleaved Mode
 
 By default, deck.gl layers render **on top** of all MapLibre layers for best performance. Set `interleaved=True` to render deck.gl layers between MapLibre layers (e.g., below labels):
