@@ -12,7 +12,7 @@ Common issues and their fixes.
 | Log scale fails | Colors don't render | Log requires positive values (min > 0) |
 | TileLayer blank | No tiles visible | Check URL has `{z}/{x}/{y}` placeholders |
 | Hex colors ignored in JSON mode | Colors don't apply | Use `[r, g, b]` arrays in JSON dicts; hex strings only work with Python helpers |
-| View state resets on basemap change | Map jumps to initial position when switching styles | Update `maplibre_config` prop, don't recreate the DeckGL component |
+| Layers/view state lost on basemap change | Overlay layers vanish or map jumps to initial position when switching styles | Update `maplibre_config` prop, don't recreate the DeckGL component |
 
 ---
 
@@ -122,9 +122,9 @@ Python helper classes automatically convert hex strings (`'#FF8C00'`) to `[r, g,
     {'@@type': 'GeoJsonLayer', 'id': 'data', 'data': geojson, 'getFillColor': [255, 140, 0]}
     ```
 
-### View State Resets on Basemap Change
+### Layers or View State Lost on Basemap Change
 
-When switching basemap styles, update the `maplibre_config` prop on the existing DeckGL component. Do **not** recreate the entire component in a callback — that destroys the map and resets the view to `initial_view_state`.
+When switching basemap styles, update the `maplibre_config` prop on the existing DeckGL component. The component uses `map.setStyle()` internally, which preserves the MapLibre map instance, the deck.gl overlay, all deck.gl data layers, and the camera position. Do **not** recreate the entire component in a callback — that destroys everything and resets from scratch.
 
 === "Correct — update the prop"
 

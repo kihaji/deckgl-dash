@@ -1,16 +1,17 @@
 """
-Demo of dynamically switching MapLibre basemap styles while preserving view state.
+Demo of dynamically switching MapLibre basemap styles while preserving deck.gl overlay layers.
 
 This example demonstrates the CORRECT pattern for basemap switching:
 - Update only the `maplibre_config` prop on an existing DeckGL component
 - The map preserves the user's current pan/zoom/pitch/bearing across style changes
+- All deck.gl overlay layers (GeoJsonLayer, ScatterplotLayer, etc.) survive the switch
 - Do NOT recreate the entire DeckGL component (see maplibre_vector_demo.py for the old pattern)
 """
 from dash import Dash, html, dcc, callback, Output, Input
 import json
 
 from deckgl_dash import DeckGL
-from deckgl_dash.layers import GeoJsonLayer
+from deckgl_dash.layers import GeoJsonLayer, ScatterplotLayer
 from deckgl_dash.maplibre import MapLibreConfig, MapLibreStyle
 
 # Sample GeoJSON overlay data
@@ -52,6 +53,16 @@ SAMPLE_GEOJSON = {
         },
     ],
 }
+
+# Sample points for a ScatterplotLayer — visible markers that should survive style switches
+SAMPLE_POINTS = [
+    {"position": [-122.421, 37.763], "name": "16th St Mission", "riders": 12000},
+    {"position": [-122.419, 37.785], "name": "Powell St", "riders": 18000},
+    {"position": [-122.414, 37.776], "name": "Civic Center", "riders": 15000},
+    {"position": [-122.397, 37.790], "name": "Embarcadero", "riders": 22000},
+    {"position": [-122.407, 37.784], "name": "Montgomery St", "riders": 20000},
+    {"position": [-122.401, 37.789], "name": "Financial District", "riders": 17000},
+]
 
 STYLE_OPTIONS = {
     "carto-positron": {"label": "CARTO Positron", "url": MapLibreStyle.CARTO_POSITRON},
@@ -98,6 +109,17 @@ app.layout = html.Div([
                 auto_highlight = True,
                 highlight_color = [255, 255, 0, 100],
                 opacity = 0.6,
+            ),
+            ScatterplotLayer(
+                id = "transit-stations",
+                data = SAMPLE_POINTS,
+                get_position = "@@=position",
+                get_radius = 200,
+                get_fill_color = [0, 128, 255, 200],
+                get_line_color = [255, 255, 255],
+                line_width_min_pixels = 2,
+                stroked = True,
+                pickable = True,
             ),
         ],
         initial_view_state = {

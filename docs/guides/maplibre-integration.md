@@ -156,7 +156,7 @@ config = MapLibreConfig(
 
 ## Switching Basemap Styles
 
-You can dynamically change the basemap style via a Dash callback by updating the `maplibre_config` prop. The component preserves the user's current pan/zoom/pitch/bearing across style changes automatically.
+You can dynamically change the basemap style via a Dash callback by updating the `maplibre_config` prop. The component uses `map.setStyle()` under the hood, so the MapLibre map instance, the deck.gl overlay, all deck.gl layers, and the camera position are all preserved across style changes automatically.
 
 !!! tip "Update the prop, don't recreate the component"
     Target the DeckGL component's `maplibre_config` prop directly. Do **not** recreate the entire `DeckGL(...)` component in the callback — that destroys and rebuilds everything from scratch.

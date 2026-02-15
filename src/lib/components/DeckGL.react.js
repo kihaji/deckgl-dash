@@ -48,6 +48,9 @@ const DeckGL = ({
     const mapRef = useRef(null);
     const overlayRef = useRef(null);
     const mapViewStateRef = useRef(null);
+    // Keep a ref to maplibreConfig so the style.load handler always reads fresh values
+    const maplibreConfigRef = useRef(maplibreConfig);
+    maplibreConfigRef.current = maplibreConfig;
 
     // Internal view state for uncontrolled mode
     const [internalViewState, setInternalViewState] = useState(initialViewState);
@@ -182,17 +185,30 @@ const DeckGL = ({
     // Ref to track if view change originated from programmatic update (to avoid feedback loops)
     const isUpdatingViewRef = useRef(false);
 
-    // Initialize MapLibre map when maplibreConfig is provided
+    // Initialize MapLibre map on first mount, or switch style on existing map
     useEffect(() => {
         if (!maplibreConfig || !mapContainerRef.current) {
             return;
         }
 
-        // Create MapLibre map — prefer saved view state (from prior style) over initial
+        const newStyle = maplibreConfig.style || { version: 8, sources: {}, layers: [] };
+
+        // Style change on existing map — use setStyle() to preserve map + overlay
+        if (mapRef.current) {
+            debugLog('setStyle: switching basemap style');
+            setMapStyleLoaded(false);
+            if (setProps) {
+                setProps({ mapStyleLoaded: false });
+            }
+            mapRef.current.setStyle(newStyle);
+            return; // no cleanup — map stays alive
+        }
+
+        // First mount — create map and overlay from scratch
         const effectiveViewState = mapViewStateRef.current || currentViewState;
         const mapOptions = {
             container: mapContainerRef.current,
-            style: maplibreConfig.style || { version: 8, sources: {}, layers: [] },
+            style: newStyle,
             center: [effectiveViewState.longitude, effectiveViewState.latitude],
             zoom: effectiveViewState.zoom,
             pitch: effectiveViewState.pitch || 0,
@@ -219,16 +235,18 @@ const DeckGL = ({
         // Add overlay as map control
         map.addControl(overlay);
 
-        // Handle style load - add custom sources and layers
+        // Handle style load — reads maplibreConfigRef to get latest sources/layers
         map.on('style.load', () => {
             setMapStyleLoaded(true);
             if (setProps) {
                 setProps({ mapStyleLoaded: true });
             }
 
+            const cfg = maplibreConfigRef.current;
+
             // Add custom sources
-            if (maplibreConfig.sources) {
-                for (const [sourceId, sourceSpec] of Object.entries(maplibreConfig.sources)) {
+            if (cfg?.sources) {
+                for (const [sourceId, sourceSpec] of Object.entries(cfg.sources)) {
                     if (!map.getSource(sourceId)) {
                         map.addSource(sourceId, sourceSpec);
                     }
@@ -236,8 +254,8 @@ const DeckGL = ({
             }
 
             // Add custom map layers
-            if (maplibreConfig.mapLayers) {
-                for (const layerSpec of maplibreConfig.mapLayers) {
+            if (cfg?.mapLayers) {
+                for (const layerSpec of cfg.mapLayers) {
                     if (!map.getLayer(layerSpec.id)) {
                         map.addLayer(layerSpec);
                     }
@@ -246,7 +264,7 @@ const DeckGL = ({
         });
 
         // Fire Dash callback on moveend (not move) to avoid excessive updates
-        // MapLibre handles its own view state - we only report to Dash when movement ends
+        // MapLibre handles its own view state — we only report to Dash when movement ends
         map.on('moveend', () => {
             debugLog('map.moveend event', { isUpdating: isUpdatingViewRef.current, enableEvents });
             // Always capture the current camera position so it survives style changes
@@ -272,19 +290,12 @@ const DeckGL = ({
             }
         });
 
-        // Cleanup on unmount or style change
+        // No cleanup — unmount is handled by a separate effect
+    }, [maplibreConfig?.style]); // Re-run only when style changes
+
+    // Cleanup on unmount only — never on style changes
+    useEffect(() => {
         return () => {
-            // Snapshot the camera position before destroying the map
-            if (mapRef.current) {
-                const center = mapRef.current.getCenter();
-                mapViewStateRef.current = {
-                    longitude: center.lng,
-                    latitude: center.lat,
-                    zoom: mapRef.current.getZoom(),
-                    pitch: mapRef.current.getPitch(),
-                    bearing: mapRef.current.getBearing(),
-                };
-            }
             if (overlayRef.current) {
                 overlayRef.current.finalize();
                 overlayRef.current = null;
@@ -293,9 +304,8 @@ const DeckGL = ({
                 mapRef.current.remove();
                 mapRef.current = null;
             }
-            setMapStyleLoaded(false);
         };
-    }, [maplibreConfig?.style]); // Re-initialize only when style changes
+    }, []);
 
     // Update overlay layers when deck.gl layers change
     // Note: We intentionally exclude callback functions from deps - they use refs internally
