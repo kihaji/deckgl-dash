@@ -229,6 +229,23 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md)
     python usage.py
     ```
 
+### Releasing a New Version
+
+1. Bump the version in `pyproject.toml`
+2. Build the production JS bundle:
+    ```bash
+    make build
+    ```
+3. Commit the version bump and built JS
+4. Create a release tag (requires clean git tree):
+    ```bash
+    make release VERSION=x.y.z
+    ```
+5. Push to trigger the PyPI publish workflow:
+    ```bash
+    git push && git push --tags
+    ```
+
 ## License
 
 MIT License - see [LICENSE](./LICENSE)
