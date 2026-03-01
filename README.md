@@ -40,6 +40,7 @@ if __name__ == '__main__':
 - **Python Helpers**: Ergonomic layer constructors (`GeoJsonLayer`, `TileLayer`, etc.)
 - **MapLibre GL JS Basemaps**: Vector tile basemaps with automatic view state synchronization
 - **Tile-based Maps**: TileLayer support for OSM, CARTO, and custom tile servers
+- **Per-Layer Data Updates**: Update individual layer data without resending all layers via `layer_data` prop
 - **Data-driven Styling**: Built-in color scales powered by chroma.js
 
 ## MapLibre GL JS Integration

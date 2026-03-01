@@ -28,6 +28,7 @@ const debugLog = DEBUG_PERF ? (...args) => console.log('[DeckGL]', ...args) : ()
 const DeckGL = ({
     id,
     layers = [],
+    layerData,
     initialViewState = DEFAULT_VIEW_STATE,
     viewState: controlledViewState,
     controller = true,
@@ -67,14 +68,27 @@ const DeckGL = ({
         }
     }, [initialViewState, controlledViewState]);
 
-    // Create deck.gl layers from JSON configs
+    // Create deck.gl layers from JSON configs, merging per-layer data overrides
     const deckLayers = useMemo(() => {
-        debugLog('useMemo: createLayers called', { layersCount: layers?.length });
+        const baseConfigs = layers || [];
+        debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: !!layerData });
         console.time('[DeckGL] createLayers');
-        const result = createLayers(layers || []);
+        if (!layerData || Object.keys(layerData).length === 0) {
+            const result = createLayers(baseConfigs);
+            console.timeEnd('[DeckGL] createLayers');
+            return result;
+        }
+        const mergedConfigs = baseConfigs.map(config => {
+            const lid = config.id;
+            if (lid && lid in layerData) {
+                return { ...config, data: layerData[lid] };
+            }
+            return config;
+        });
+        const result = createLayers(mergedConfigs);
         console.timeEnd('[DeckGL] createLayers');
         return result;
-    }, [layers]);
+    }, [layers, layerData]);
 
     // View state change handler (for both internal state and Dash callbacks)
     const handleViewStateChange = useCallback(({ viewState: newViewState }) => {
@@ -467,6 +481,13 @@ DeckGL.propTypes = {
      * Supports all deck.gl layer types.
      */
     layers: PropTypes.arrayOf(PropTypes.object),
+
+    /**
+     * Per-layer data overrides. Dict mapping layer IDs to data values.
+     * Merges with the `layers` prop — only the `data` field of matching layers is replaced.
+     * Allows updating individual layer data without resending the entire layers array.
+     */
+    layerData: PropTypes.objectOf(PropTypes.any),
 
     /**
      * Initial view state for uncontrolled mode. Sets the initial camera position.

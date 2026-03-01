@@ -45,6 +45,7 @@ class DeckGL(_DeckGLBase):
     Keyword arguments:
         id: The ID used to identify this component in Dash callbacks.
         layers: Array of layer configurations (BaseLayer objects or dicts with @@type).
+        layer_data: Per-layer data overrides (dict of {layer_id: data}). Merges with layers prop.
         initial_view_state: Initial view state (longitude, latitude, zoom, pitch, bearing).
         view_state: Controlled view state for programmatic control.
         controller: Enable map interactions (True/False or fine-grained config dict).
@@ -61,6 +62,7 @@ class DeckGL(_DeckGLBase):
         self,
         id: Optional[Union[str, dict]] = None,
         layers: Optional[Sequence[Union[BaseLayer, Dict[str, Any]]]] = None,
+        layer_data: Optional[Dict[str, Any]] = None,
         initial_view_state: Optional[Dict[str, Any]] = None,
         view_state: Optional[Dict[str, Any]] = None,
         controller: Optional[Union[bool, dict]] = None,
@@ -81,6 +83,7 @@ class DeckGL(_DeckGLBase):
         super().__init__(
             id = id,
             layers = processed_layers,
+            layerData = layer_data,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any]; auto-generated type is Dict[str|float|int, Any]
             initialViewState = initial_view_state,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any] for ergonomics
             viewState = view_state,  # type: ignore[arg-type]
             controller = controller,

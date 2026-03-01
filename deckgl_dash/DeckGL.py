@@ -59,6 +59,12 @@ Keyword arguments:
 
     - bearing (number; optional)
 
+- layerData (dict with strings as keys and values of type boolean | number | string | dict | list; optional):
+    Per-layer data overrides. Dict mapping layer IDs to data values.
+    Merges with the `layers` prop — only the `data` field of matching
+    layers is replaced. Allows updating individual layer data without
+    resending the entire layers array.
+
 - layers (list of dicts; optional):
     Array of layer configurations. Each layer should have a '@@type'
     property specifying the layer type (e.g., 'GeoJsonLayer',
@@ -156,6 +162,7 @@ Keyword arguments:
         self,
         id: typing.Optional[typing.Union[str, dict]] = None,
         layers: typing.Optional[typing.Sequence[dict]] = None,
+        layerData: typing.Optional[typing.Dict[typing.Union[str, float, int], typing.Any]] = None,
         initialViewState: typing.Optional["InitialViewState"] = None,
         viewState: typing.Optional["ViewState"] = None,
         controller: typing.Optional[typing.Union[bool, dict]] = None,
@@ -168,9 +175,9 @@ Keyword arguments:
         hoverInfo: typing.Optional[dict] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

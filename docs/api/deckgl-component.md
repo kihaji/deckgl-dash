@@ -12,6 +12,7 @@ from deckgl_dash import DeckGL
 |------|------|---------|-------------|
 | `id` | `str` | — | Component ID for Dash callbacks |
 | `layers` | `list[dict]` | `[]` | Array of deck.gl layer configurations. Each layer needs a `@@type` property (or use Python helper classes) |
+| `layer_data` | `dict[str, Any]` | `None` | Per-layer data overrides. Dict mapping layer IDs to data values. See [Updating Layer Data](#updating-layer-data) |
 | `initial_view_state` | `dict` | `{longitude: -122.4, latitude: 37.8, zoom: 11, pitch: 0, bearing: 0}` | Initial camera position (uncontrolled mode) |
 | `view_state` | `dict` | — | Controlled view state — when set, fully controls the camera |
 | `controller` | `bool \| dict` | `True` | Enable map interactions. `True` for all, `False` for none, or a dict for fine-grained control |
@@ -110,3 +111,35 @@ Layers can be provided as Python helper objects or raw JSON dicts:
     ```
 
 Python helpers automatically convert `snake_case` props to `camelCase` and normalize hex color strings to `[r, g, b]` arrays.
+
+## Updating Layer Data
+
+The `layer_data` prop lets you update individual layer data without resending the entire `layers` array. Define your layer stack once in the layout, then target specific layers by ID:
+
+```python
+from dash import callback, Output, Input
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import HexagonLayer, ScatterplotLayer, process_layers
+
+# Layout: define layers once (data can be empty placeholders)
+DeckGL(
+    id='map',
+    layers=process_layers([
+        HexagonLayer(id='hexagons', data=[], get_position='@@=coordinates', radius=100),
+        ScatterplotLayer(id='scatter', data=STATIC_POINTS, get_position='@@=coordinates'),
+    ]),
+    ...
+)
+
+# Callback: update only the hexagon layer's data
+@callback(Output('map', 'layerData'), Input('load-btn', 'n_clicks'))
+def load_data(n):
+    return {'hexagons': generate_points()}  # only this payload is serialized
+```
+
+- `layers` = source of truth for layer structure and styling. Full rebuild when changed.
+- `layer_data` = per-layer data overrides, merged on top of `layers` by matching layer IDs.
+- Keys in `layer_data` that don't match any layer ID are silently ignored.
+- Dash `Patch()` works naturally since `layer_data` is a dict prop.
+
+See the [Layer Data Updates Guide](../guides/layer-data-updates.md) for detailed patterns.

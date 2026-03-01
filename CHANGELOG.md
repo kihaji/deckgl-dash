@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-01
+
+### Added
+- **`layer_data` prop** — per-layer data overrides via `{layer_id: data}` dict. Update individual layer data without resending the entire `layers` array. Works with Dash `Patch()` for independent multi-layer updates.
+- New documentation guide: [Layer Data Updates](docs/guides/layer-data-updates.md)
+
+### Changed
+- `hexagon_deferred_load_demo.py` — rewritten to use `layer_data` instead of `dcc.Store` + full layer rebuild
+- `performance_test_demo.py` — HexagonLayer toggles now use `layer_data` + `Patch()` for independent updates
+
 ## [0.1.0] - 2025-01-25
 
 ### Added

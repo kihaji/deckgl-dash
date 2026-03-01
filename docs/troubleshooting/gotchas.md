@@ -13,6 +13,7 @@ Common issues and their fixes.
 | TileLayer blank | No tiles visible | Check URL has `{z}/{x}/{y}` placeholders |
 | Hex colors ignored in JSON mode | Colors don't apply | Use `[r, g, b]` arrays in JSON dicts; hex strings only work with Python helpers |
 | Layers/view state lost on basemap change | Overlay layers vanish or map jumps to initial position when switching styles | Update `maplibre_config` prop, don't recreate the DeckGL component |
+| Slow layer updates | Updating `layers` resends all layer data every time | Use `layer_data` to update individual layers by ID. See [Layer Data Updates](../guides/layer-data-updates.md) |
 
 ---
 

@@ -6,8 +6,8 @@ This example tests rendering performance with:
 - HexagonLayer (aggregation): 10k, 20k, 40k, 100k point layers
 - BitmapLayer: image overlay
 
-HexagonLayers demonstrate independent layer updates - each has its own callback
-that updates only that layer's data, simulating real-world app structure.
+HexagonLayers demonstrate the `layerData` prop with `Patch()` — each toggle
+callback updates only its own layer's data, without touching other layers.
 
 Requirements:
     pip install h3  # or: poetry install -E test
@@ -17,7 +17,7 @@ import json
 import os
 import random
 from pathlib import Path
-from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update, ALL, MATCH
+from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update, ALL, MATCH, Patch
 
 from deckgl_dash import DeckGL, ColorScale, color_range_from_scale
 from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
@@ -154,26 +154,6 @@ def create_geojson_layers(visible_layers: set) -> list:
     return layers
 
 
-def create_hexagon_layer(size: int, data: list, extruded_3d: bool = False) -> HexagonLayer:
-    """Create a single HexagonLayer configuration."""
-    return HexagonLayer(
-        id = f"agg-{size // 1000}k",
-        data = data,
-        get_position = "@@=coordinates",
-        radius = 100,
-        elevation_scale = 50 if extruded_3d else 0,
-        extruded = extruded_3d,
-        color_range = COLOR_RANGE,
-        color_aggregation = "SUM",
-        get_color_weight = 1,
-        lower_percentile = 0,
-        upper_percentile = 100,
-        pickable = len(data) > 0,
-        auto_highlight = len(data) > 0,
-        highlight_color = [255, 255, 0, 180],
-    )
-
-
 def create_bitmap_layer(visible: bool) -> list:
     """Create bitmap layer if visible."""
     if visible:
@@ -186,12 +166,35 @@ def create_bitmap_layer(visible: bool) -> list:
     return []
 
 
+def build_initial_layers(extruded_3d: bool = False) -> list:
+    """Build the initial layer stack with empty HexagonLayer placeholders."""
+    layers = create_base_layers()
+    for size in LAYER_SIZES:
+        layers.append(HexagonLayer(
+            id = f"agg-{size // 1000}k",
+            data = [],
+            get_position = "@@=coordinates",
+            radius = 100,
+            elevation_scale = 50 if extruded_3d else 0,
+            extruded = extruded_3d,
+            color_range = COLOR_RANGE,
+            color_aggregation = "SUM",
+            get_color_weight = 1,
+            lower_percentile = 0,
+            upper_percentile = 100,
+            pickable = False,
+            auto_highlight = False,
+            highlight_color = [255, 255, 0, 180],
+        ))
+    return layers
+
+
 # Initial state
 INITIAL_VISIBLE = set()
 
 app.layout = html.Div([
     html.H1("deckgl-dash Performance Test"),
-    html.P("Toggle layers to test rendering performance. HexagonLayers have independent callbacks."),
+    html.P("Toggle layers to test rendering performance. HexagonLayers use the layerData prop with Patch() for independent updates."),
 
     # Layer toggle controls
     html.Div([
@@ -203,7 +206,7 @@ app.layout = html.Div([
 
         html.Div([
             html.H4("HexagonLayer (Aggregation)"),
-            html.P("(independent callbacks)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
+            html.P("(independent via layerData)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
             *[dcc.Checklist(id = {"type": "toggle-agg", "size": size}, options = [{"label": f" {size // 1000}k points", "value": "visible"}], value = [], inline = True) for size in LAYER_SIZES],
         ], style = {"display": "inline-block", "verticalAlign": "top", "marginRight": "40px"}),
 
@@ -223,14 +226,10 @@ app.layout = html.Div([
     dcc.Store(id = "visible-image", data = False),
     dcc.Store(id = "mode-3d", data = "2d"),
 
-    # Individual stores for each HexagonLayer's data - THIS IS THE KEY PATTERN
-    # Each HexagonLayer has its own store, updated by its own callback
-    *[dcc.Store(id = {"type": "hexagon-data", "size": size}, data = []) for size in LAYER_SIZES],
-
-    # Map
+    # Map — HexagonLayers defined with empty data, filled via layerData
     DeckGL(
         id = "map",
-        layers = process_layers(create_base_layers()),
+        layers = process_layers(build_initial_layers()),
         initial_view_state = {"longitude": CENTER_LON, "latitude": CENTER_LAT, "zoom": 10, "pitch": 0, "bearing": 0},
         controller = {"dragRotate": False, "touchRotate": False, "keyboard": {"rotateKey": False}},
         tooltip = {
@@ -247,7 +246,7 @@ app.layout = html.Div([
         html.H4("Performance Notes:"),
         html.Ul([
             html.Li("H3 GeoJSON toggles rebuild all layers (traditional pattern)"),
-            html.Li("HexagonLayer toggles update only their own data store (independent callback pattern)"),
+            html.Li("HexagonLayer toggles use layerData + Patch() — only that layer's data is sent"),
             html.Li("Watch browser DevTools Network tab to see payload sizes"),
             html.Li("Independent callbacks allow different parts of an app to manage their own layers"),
         ])
@@ -255,33 +254,34 @@ app.layout = html.Div([
 ])
 
 
-# --- Independent callbacks for each HexagonLayer ---
-# This is the key pattern: each layer has its own callback that updates only its data
+# --- Independent callbacks for each HexagonLayer via layerData + Patch() ---
 
 @callback(
-    Output({"type": "hexagon-data", "size": MATCH}, "data"),
+    Output("map", "layerData"),
     Input({"type": "toggle-agg", "size": MATCH}, "value"),
     State({"type": "toggle-agg", "size": MATCH}, "id"),
     prevent_initial_call = True,
 )
 def update_hexagon_data(toggle_value, toggle_id):
-    """Update a single HexagonLayer's data when its toggle changes.
+    """Update a single HexagonLayer's data via layerData + Patch().
 
-    This callback only updates ONE layer's data store - demonstrating
-    independent layer updates without affecting other layers.
+    Only the targeted layer's data is serialized — no other layers are affected.
     """
     size = toggle_id["size"]
+    layer_id = f"agg-{size // 1000}k"
     is_visible = "visible" in (toggle_value or [])
 
+    patched = Patch()
     if is_visible:
-        print(f"[Callback] Loading data for agg-{size // 1000}k ({size:,} points)")
-        return POINT_DATA[size]
+        print(f"[Callback] Loading data for {layer_id} ({size:,} points)")
+        patched[layer_id] = POINT_DATA[size]
     else:
-        print(f"[Callback] Clearing data for agg-{size // 1000}k")
-        return []
+        print(f"[Callback] Clearing data for {layer_id}")
+        patched[layer_id] = []
+    return patched
 
 
-# --- Callbacks for H3/GeoJSON layers (traditional pattern) ---
+# --- Callbacks for H3/GeoJSON layers (traditional pattern — rebuilds layers) ---
 
 @callback(
     Output("visible-h3-layers", "data"),
@@ -320,36 +320,48 @@ def update_3d_mode(value):
     return value
 
 
-# --- Main layers aggregation callback ---
+# --- Layers rebuild for H3/GeoJSON/image/3D mode changes ---
 
 @callback(
     Output("map", "layers"),
     Input("visible-h3-layers", "data"),
     Input("visible-image", "data"),
     Input("mode-3d", "data"),
-    [Input({"type": "hexagon-data", "size": size}, "data") for size in LAYER_SIZES],
     prevent_initial_call = True,
 )
-def aggregate_layers(h3_visible, image_visible, mode_3d, *hexagon_data_list):
-    """Aggregate all layer sources into the final layers array.
+def rebuild_layers(h3_visible, image_visible, mode_3d):
+    """Rebuild the layer stack when H3 visibility, image, or 3D mode changes.
 
-    This callback fires when any input changes, but each HexagonLayer's
-    data comes from its own store (updated by its own independent callback).
+    HexagonLayer data is NOT included here — it comes from layerData.
+    Only the layer structure/styling is rebuilt.
     """
     extruded = mode_3d == "3d"
 
-    # Build layers
     layers = create_base_layers()
     layers.extend(create_geojson_layers(set(h3_visible or [])))
 
-    # Add HexagonLayers - data comes from individual stores
-    for i, size in enumerate(LAYER_SIZES):
-        data = hexagon_data_list[i] or []
-        layers.append(create_hexagon_layer(size, data, extruded))
+    # Add HexagonLayers with empty data — layerData fills them independently
+    for size in LAYER_SIZES:
+        layers.append(HexagonLayer(
+            id = f"agg-{size // 1000}k",
+            data = [],
+            get_position = "@@=coordinates",
+            radius = 100,
+            elevation_scale = 50 if extruded else 0,
+            extruded = extruded,
+            color_range = COLOR_RANGE,
+            color_aggregation = "SUM",
+            get_color_weight = 1,
+            lower_percentile = 0,
+            upper_percentile = 100,
+            pickable = False,
+            auto_highlight = False,
+            highlight_color = [255, 255, 0, 180],
+        ))
 
     layers.extend(create_bitmap_layer(image_visible))
 
-    print(f"[Callback] Aggregating layers: {len(layers)} total, H3={h3_visible}, image={image_visible}")
+    print(f"[Callback] Rebuilding layers: {len(layers)} total, H3={h3_visible}, image={image_visible}")
     return process_layers(layers)
 
 

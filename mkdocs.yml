@@ -35,6 +35,7 @@ nav:
       - Quick Start: getting-started/quick-start.md
   - Guides:
       - MapLibre Integration: guides/maplibre-integration.md
+      - Layer Data Updates: guides/layer-data-updates.md
   - API Reference:
       - DeckGL Component: api/deckgl-component.md
       - Core Layers: api/core-layers.md

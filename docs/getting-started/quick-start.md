@@ -165,6 +165,37 @@ def display_click(click_info):
 !!! warning "Events must be explicitly enabled"
     If `click_info` or `hover_info` never updates in your callback, check that you've set `enable_events`. See [Gotchas](../troubleshooting/gotchas.md) for more.
 
+## Updating Layer Data
+
+Use the `layer_data` prop to update individual layer data without resending the entire `layers` array:
+
+```python
+from dash import Dash, html, Output, Input, callback
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import HexagonLayer, ScatterplotLayer, process_layers
+
+app = Dash(__name__)
+
+app.layout = html.Div([
+    html.Button("Load Data", id="load-btn"),
+    DeckGL(
+        id='map',
+        layers=process_layers([
+            HexagonLayer(id='hexagons', data=[], get_position='@@=coordinates', radius=100),
+            ScatterplotLayer(id='scatter', data=STATIC_POINTS, get_position='@@=coordinates'),
+        ]),
+        initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11},
+    ),
+])
+
+
+@callback(Output('map', 'layerData'), Input('load-btn', 'n_clicks'), prevent_initial_call=True)
+def load_hexagons(n):
+    return {'hexagons': generate_points()}  # only hexagon data is serialized
+```
+
+The ScatterplotLayer data is never re-serialized. See the [Layer Data Updates Guide](../guides/layer-data-updates.md) for more patterns.
+
 ## Using MapLibre Basemaps
 
 For vector tile basemaps instead of raster tiles, use the MapLibre integration:
