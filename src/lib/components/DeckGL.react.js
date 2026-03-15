@@ -68,20 +68,29 @@ const DeckGL = ({
         }
     }, [initialViewState, controlledViewState]);
 
+    // Accumulate layerData entries so each callback only sends its own layer's data.
+    // Merge happens inside useMemo (not useEffect) so the current render sees the update immediately.
+    const accumulatedLayerDataRef = useRef({});
+
     // Create deck.gl layers from JSON configs, merging per-layer data overrides
     const deckLayers = useMemo(() => {
+        // Merge incoming layerData into the accumulated ref before reading it
+        if (layerData && Object.keys(layerData).length > 0) {
+            accumulatedLayerDataRef.current = { ...accumulatedLayerDataRef.current, ...layerData };
+        }
         const baseConfigs = layers || [];
-        debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: !!layerData });
+        const mergedData = accumulatedLayerDataRef.current;
+        debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: Object.keys(mergedData).length > 0 });
         console.time('[DeckGL] createLayers');
-        if (!layerData || Object.keys(layerData).length === 0) {
+        if (Object.keys(mergedData).length === 0) {
             const result = createLayers(baseConfigs);
             console.timeEnd('[DeckGL] createLayers');
             return result;
         }
         const mergedConfigs = baseConfigs.map(config => {
             const lid = config.id;
-            if (lid && lid in layerData) {
-                return { ...config, data: layerData[lid] };
+            if (lid && lid in mergedData) {
+                return { ...config, data: mergedData[lid] };
             }
             return config;
         });
