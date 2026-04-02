@@ -8,6 +8,12 @@ pip install deckgl-dash
 
 ### Optional Dependencies
 
+For coordinate format conversion (UTM, MGRS):
+
+```bash
+pip install deckgl-dash[coordinates]
+```
+
 For H3 hexagonal indexing support:
 
 ```bash

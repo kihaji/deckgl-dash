@@ -36,6 +36,7 @@ nav:
   - Guides:
       - MapLibre Integration: guides/maplibre-integration.md
       - Layer Data Updates: guides/layer-data-updates.md
+      - Coordinate Conversion: guides/coordinate-conversion.md
   - API Reference:
       - DeckGL Component: api/deckgl-component.md
       - Core Layers: api/core-layers.md
@@ -43,6 +44,7 @@ nav:
       - Aggregation Layers: api/aggregation-layers.md
       - MapLibre: api/maplibre.md
       - Color Scales: api/colors.md
+      - Coordinate Conversion: api/coordinates.md
   - Troubleshooting:
       - Gotchas: troubleshooting/gotchas.md
 

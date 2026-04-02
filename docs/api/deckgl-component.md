@@ -30,7 +30,7 @@ These props are updated by the component and can be read in Dash callbacks:
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `click_info` | `dict` | Information about the last clicked feature |
+| `click_info` | `dict` | Information about the last click on the map. Includes geographic coordinates whether or not a feature was picked. See [Coordinate Conversion](coordinates.md) |
 | `hover_info` | `dict` | Information about the currently hovered feature |
 | `map_style_loaded` | `bool` | `True` when the MapLibre style has finished loading |
 | `data_load_info` | `dict` | Information about the last successful remote data load. Contains `layerId`, `featureCount`, `timestamp` |
