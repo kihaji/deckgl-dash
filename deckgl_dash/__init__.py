@@ -41,8 +41,11 @@ from . import maplibre
 # Import color scale utilities
 from .colors import ColorScale, color_range_from_scale, AVAILABLE_SCALES
 
+# Import coordinate conversion utilities
+from .coordinates import CoordinateConverter
+
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '

@@ -6,16 +6,17 @@
 /**
  * Normalize a deck.gl picking info object for Dash callbacks
  * @param {Object} info - deck.gl picking info object
- * @returns {Object|null} Normalized event info or null if no valid pick
+ * @returns {Object|null} Normalized event info or null if no valid info
  */
 export function normalizePickInfo(info) {
-    if (!info || !info.picked) {
+    if (!info) {
         return null;
     }
+    const picked = !!info.picked;
     const normalized = {
         // Basic pick info
-        picked: true,
-        index: info.index,
+        picked,
+        index: picked ? info.index : null,
         layerId: info.layer?.id || null,
         // Coordinates
         coordinate: info.coordinate || null,
@@ -24,9 +25,9 @@ export function normalizePickInfo(info) {
         // Pixel coordinates
         pixel: info.pixel || [info.x, info.y],
         // Object data (the actual feature/data item)
-        object: serializeObject(info.object),
+        object: picked ? serializeObject(info.object) : null,
         // For GeoJSON features
-        properties: info.object?.properties || null,
+        properties: picked ? (info.object?.properties || null) : null,
         // Source layer for MVT/Tile layers
         sourceLayer: info.sourceLayer || null,
     };

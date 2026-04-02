@@ -399,17 +399,17 @@ const DeckGL = ({
  * Normalize a deck.gl picking info object for Dash callbacks
  */
 function normalizePickInfo(info) {
-    if (!info || !info.picked) {
+    if (!info) {
         return null;
     }
-    // Serialize the object first
-    const serializedObject = serializeObject(info.object);
-    // Extract properties from the serialized object (not the original)
-    const properties = serializedObject?.properties || null;
+    const picked = !!info.picked;
+    // Serialize the object only when a feature was picked
+    const serializedObject = picked ? serializeObject(info.object) : null;
+    const properties = picked ? (serializedObject?.properties || null) : null;
 
     return {
-        picked: true,
-        index: typeof info.index === 'number' ? info.index : null,
+        picked,
+        index: picked && typeof info.index === 'number' ? info.index : null,
         layerId: info.layer?.id || null,
         coordinate: Array.isArray(info.coordinate) ? [...info.coordinate] : null,
         x: typeof info.x === 'number' ? info.x : null,
