@@ -49,13 +49,15 @@ class DeckGL(_DeckGLBase):
         initial_view_state: Initial view state (longitude, latitude, zoom, pitch, bearing).
         view_state: Controlled view state for programmatic control.
         controller: Enable map interactions (True/False or fine-grained config dict).
-        enable_events: Event opt-in (False, True, or list like ['click', 'hover']).
+        enable_events: Event opt-in (False, True, or list like ['click', 'hover', 'dataLoadError']).
         tooltip: Tooltip config (False, True, or dict with html/style).
         style: CSS styles for the container.
         maplibre_config: MapLibre GL JS configuration for basemap rendering.
         map_style_loaded: (Output) True when MapLibre style has finished loading.
         click_info: (Output) Last clicked feature info.
         hover_info: (Output) Currently hovered feature info.
+        data_load_info: (Output) Last successful remote data load info.
+        data_load_error: (Output) Last data load error info.
     """
 
     def __init__(
@@ -73,6 +75,8 @@ class DeckGL(_DeckGLBase):
         map_style_loaded: Optional[bool] = None,
         click_info: Optional[dict] = None,
         hover_info: Optional[dict] = None,
+        data_load_info: Optional[dict] = None,
+        data_load_error: Optional[dict] = None,
         **kwargs
     ):
         # Convert layer objects to dicts
@@ -94,5 +98,7 @@ class DeckGL(_DeckGLBase):
             mapStyleLoaded = map_style_loaded,
             clickInfo = click_info,
             hoverInfo = hover_info,
+            dataLoadInfo = data_load_info,
+            dataLoadError = data_load_error,
             **kwargs
         )

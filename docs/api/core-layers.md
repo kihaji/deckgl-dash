@@ -22,6 +22,7 @@ All layers share these properties:
 | `visible` | `bool` | `True` | Show/hide the layer |
 | `auto_highlight` | `bool` | `False` | Highlight features on hover |
 | `highlight_color` | `color` | `[0,0,128,128]` | Color used for auto-highlight |
+| `load_options` | `dict` | `None` | Options for loading remote data (see [Remote Data Loading](deckgl-component.md#remote-data-loading)) |
 
 ### Color Values
 

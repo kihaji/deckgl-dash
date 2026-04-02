@@ -36,6 +36,7 @@ TileLayer(
 | `refinement_strategy` | `str` | `'best-available'` | `'best-available'`, `'no-overlap'`, or `'never'` |
 | `extent` | `list[float]` | — | Bounding box `[minX, minY, maxX, maxY]` |
 | `max_requests` | `int` | `6` | Maximum concurrent tile requests |
+| `load_options` | `dict` | `None` | Options for loading remote data (see [Remote Data Loading](deckgl-component.md#remote-data-loading)) |
 | `pickable` | `bool` | `False` | Enable interactions |
 | `opacity` | `float` | `1.0` | Layer opacity |
 | `visible` | `bool` | `True` | Show/hide layer |
@@ -73,6 +74,7 @@ MVTLayer(
 | `get_point_radius` | `accessor` | `1` | Point radius |
 | `get_elevation` | `accessor` | `0` | Extrusion height |
 | `binary` | `bool` | `False` | Use binary data format (faster for large datasets) |
+| `load_options` | `dict` | `None` | Options for loading remote data (see [Remote Data Loading](deckgl-component.md#remote-data-loading)) |
 
 MVTLayer also inherits all TileLayer props (`tile_size`, `min_zoom`, `max_zoom`, etc.) and size scale props (`line_width_units`, `point_radius_units`, etc.).
 

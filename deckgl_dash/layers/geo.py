@@ -43,6 +43,8 @@ class TileLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -62,6 +64,7 @@ class TileLayer(BaseLayer):
         self._set_prop('extent', extent)
         # Loading
         self._set_prop('max_requests', max_requests)
+        self._set_prop('load_options', load_options)
         # Rendering
         self._set_prop('render_sublayers', render_sublayers)
         # Interaction
@@ -134,6 +137,8 @@ class MVTLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -180,6 +185,8 @@ class MVTLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)

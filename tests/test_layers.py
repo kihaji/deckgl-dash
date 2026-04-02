@@ -324,3 +324,69 @@ class TestProcessLayers:
     def test_invalid_type(self):
         with pytest.raises(TypeError, match="must be a BaseLayer or dict"):
             process_layers(['not a layer'])
+
+
+class TestLoadOptions:
+    """Tests for load_options on various layers."""
+
+    def test_geojson_load_options(self):
+        layer = GeoJsonLayer(
+            id = 'remote', data = 'https://example.com/data.geojson',
+            load_options = {'fetch': {'credentials': 'include', 'mode': 'cors'}}
+        )
+        d = layer.to_dict()
+        assert d['loadOptions'] == {'fetch': {'credentials': 'include', 'mode': 'cors'}}
+
+    def test_load_options_none_omitted(self):
+        layer = GeoJsonLayer(id = 'test', data = [])
+        d = layer.to_dict()
+        assert 'loadOptions' not in d
+
+    def test_url_as_data(self):
+        layer = GeoJsonLayer(id = 'remote', data = 'https://example.com/data.geojson', get_fill_color = '#FF0000')
+        d = layer.to_dict()
+        assert d['data'] == 'https://example.com/data.geojson'
+        assert d['getFillColor'] == [255, 0, 0]
+
+    def test_tile_layer_load_options(self):
+        layer = TileLayer(
+            id = 'tiles', data = 'https://example.com/{z}/{x}/{y}.png',
+            load_options = {'fetch': {'credentials': 'include'}}
+        )
+        d = layer.to_dict()
+        assert d['loadOptions'] == {'fetch': {'credentials': 'include'}}
+
+    def test_mvt_layer_load_options(self):
+        layer = MVTLayer(
+            id = 'mvt', data = 'https://example.com/{z}/{x}/{y}.mvt',
+            load_options = {'fetch': {'headers': {'Authorization': 'Bearer token'}}}
+        )
+        d = layer.to_dict()
+        assert d['loadOptions']['fetch']['headers']['Authorization'] == 'Bearer token'
+
+    def test_scatterplot_load_options(self):
+        layer = ScatterplotLayer(
+            id = 'scatter', data = 'https://example.com/points.json',
+            load_options = {'fetch': {'credentials': 'include'}}, get_position = '@@=coordinates'
+        )
+        d = layer.to_dict()
+        assert d['loadOptions']['fetch']['credentials'] == 'include'
+
+    def test_load_options_via_kwargs_on_heatmap(self):
+        """load_options works via kwargs on layers without explicit parameter."""
+        layer = HeatmapLayer(
+            id = 'heatmap', data = 'https://example.com/heat.json',
+            load_options = {'fetch': {'credentials': 'include'}}, get_position = '@@=coordinates'
+        )
+        d = layer.to_dict()
+        assert d['loadOptions']['fetch']['credentials'] == 'include'
+
+    def test_load_options_with_custom_headers(self):
+        layer = GeoJsonLayer(
+            id = 'auth', data = 'https://secure.example.com/data.geojson',
+            load_options = {'fetch': {'credentials': 'include', 'headers': {'X-Custom': 'value'}, 'mode': 'cors'}}
+        )
+        d = layer.to_dict()
+        assert d['loadOptions']['fetch']['credentials'] == 'include'
+        assert d['loadOptions']['fetch']['headers']['X-Custom'] == 'value'
+        assert d['loadOptions']['fetch']['mode'] == 'cors'

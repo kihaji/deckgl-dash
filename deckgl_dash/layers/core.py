@@ -53,6 +53,8 @@ class GeoJsonLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -86,6 +88,8 @@ class GeoJsonLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -138,6 +142,8 @@ class ScatterplotLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -170,6 +176,8 @@ class ScatterplotLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -217,6 +225,8 @@ class PathLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -243,6 +253,8 @@ class PathLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -284,6 +296,8 @@ class LineLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -305,6 +319,8 @@ class LineLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -354,6 +370,8 @@ class ArcLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -382,6 +400,8 @@ class ArcLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -433,6 +453,8 @@ class IconLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -462,6 +484,8 @@ class IconLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -525,6 +549,8 @@ class TextLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -566,6 +592,8 @@ class TextLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)
@@ -616,6 +644,8 @@ class PolygonLayer(BaseLayer):
         pickable: Optional[bool] = None,
         auto_highlight: Optional[bool] = None,
         highlight_color: Optional[ColorValue] = None,
+        # Loading
+        load_options: Optional[Dict[str, Any]] = None,
         # Other
         opacity: Optional[float] = None,
         visible: Optional[bool] = None,
@@ -645,6 +675,8 @@ class PolygonLayer(BaseLayer):
         self._set_prop('pickable', pickable)
         self._set_prop('auto_highlight', auto_highlight)
         self._set_prop('highlight_color', highlight_color)
+        # Loading
+        self._set_prop('load_options', load_options)
         # Other
         self._set_prop('opacity', opacity)
         self._set_prop('visible', visible)

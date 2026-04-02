@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`load_options` prop** on all layer types — configure how remote data is fetched, including credentials, headers, and CORS mode. Enables client-side loading of GeoJSON from external servers with browser client certificate (mTLS) support.
+- **`dataLoad` and `dataLoadError` events** — opt-in via `enable_events=['dataLoad', 'dataLoadError']` to receive Dash callbacks when layers load or fail to load remote data.
+- **`data_load_info` output prop** — contains `layerId`, `featureCount`, and `timestamp` after a successful remote data load.
+- **`data_load_error` output prop** — contains `layerId`, `error`, and `timestamp` when a remote data load fails.
+
 ## [0.5.0] - 2026-03-01
 
 ### Added

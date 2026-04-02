@@ -4,6 +4,7 @@
  */
 
 import { isScaleAccessor, parseScaleAccessor, createColorScaleAccessor } from './colorScales';
+import { isEventEnabled } from './eventHandler';
 
 // Core layers from @deck.gl/layers
 import {
@@ -294,9 +295,12 @@ function createRasterTileRenderSubLayers() {
 /**
  * Create a deck.gl layer instance from a JSON/dict configuration
  * @param {Object} config - Layer configuration with @@type property
+ * @param {Object} options - Optional configuration for event callbacks
+ * @param {Function} options.setProps - Dash setProps function for firing callbacks
+ * @param {boolean|Array} options.enableEvents - Event configuration
  * @returns {Object|null} deck.gl layer instance or null if type not found
  */
-export function createLayer(config) {
+export function createLayer(config, options = {}) {
     const { '@@type': typeName, ...layerProps } = config;
     if (!typeName) {
         console.warn('Layer config missing @@type:', config);
@@ -323,6 +327,35 @@ export function createLayer(config) {
         }
     }
 
+    // Inject data load event callbacks for layers with URL data
+    const { setProps, enableEvents } = options;
+    if (setProps && typeof parsedProps.data === 'string') {
+        if (isEventEnabled('dataLoad', enableEvents)) {
+            parsedProps.onDataLoad = (data) => {
+                setProps({
+                    dataLoadInfo: {
+                        layerId: parsedProps.id || null,
+                        featureCount: Array.isArray(data) ? data.length : (data?.features?.length ?? null),
+                        timestamp: Date.now(),
+                    }
+                });
+            };
+        }
+        if (isEventEnabled('dataLoadError', enableEvents)) {
+            const existingOnError = parsedProps.onError;
+            parsedProps.onError = (error) => {
+                setProps({
+                    dataLoadError: {
+                        layerId: parsedProps.id || null,
+                        error: error?.message || String(error),
+                        timestamp: Date.now(),
+                    }
+                });
+                if (existingOnError) existingOnError(error);
+            };
+        }
+    }
+
     try {
         return new LayerClass(parsedProps);
     } catch (error) {
@@ -334,13 +367,14 @@ export function createLayer(config) {
 /**
  * Create multiple deck.gl layers from an array of configurations
  * @param {Array} configs - Array of layer configurations
+ * @param {Object} options - Optional configuration for event callbacks
  * @returns {Array} Array of deck.gl layer instances (excludes failed layers)
  */
-export function createLayers(configs) {
+export function createLayers(configs, options = {}) {
     if (!Array.isArray(configs)) {
         return [];
     }
-    return configs.map(config => createLayer(config)).filter(layer => layer !== null);
+    return configs.map(config => createLayer(config, options)).filter(layer => layer !== null);
 }
 
 // Re-export color scale utilities for external use

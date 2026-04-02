@@ -188,7 +188,7 @@ export function isEventEnabled(eventType, enableEvents) {
  * @returns {Array} Array of enabled event type strings
  */
 export function getEnabledEvents(enableEvents) {
-    const allEvents = ['click', 'hover', 'viewStateChange'];
+    const allEvents = ['click', 'hover', 'viewStateChange', 'dataLoad', 'dataLoadError'];
     if (enableEvents === true) {
         return allEvents;
     }

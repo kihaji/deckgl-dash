@@ -33,6 +33,17 @@ Keyword arguments:
     interactions - False: Disable all interactions - object:
     Fine-grained control (e.g., {dragPan: True, scrollZoom: False}).
 
+- dataLoadError (dict; optional):
+    (Output) Information about the last data load error. Updated when
+    'dataLoadError' is included in enableEvents and a layer fails to
+    load data from a URL. Contains: { layerId, error, timestamp }.
+
+- dataLoadInfo (dict; optional):
+    (Output) Information about the last successful remote data load.
+    Updated when 'dataLoad' is included in enableEvents and a layer
+    loads data from a URL. Contains: { layerId, featureCount,
+    timestamp }.
+
 - enableEvents (boolean | list of strings; default False):
     Enable events for Dash callbacks. Events are disabled by default
     for performance. Can be: - False: No events (default) - True:
@@ -173,11 +184,13 @@ Keyword arguments:
         mapStyleLoaded: typing.Optional[bool] = None,
         clickInfo: typing.Optional[dict] = None,
         hoverInfo: typing.Optional[dict] = None,
+        dataLoadInfo: typing.Optional[dict] = None,
+        dataLoadError: typing.Optional[dict] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

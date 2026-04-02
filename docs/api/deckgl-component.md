@@ -16,7 +16,7 @@ from deckgl_dash import DeckGL
 | `initial_view_state` | `dict` | `{longitude: -122.4, latitude: 37.8, zoom: 11, pitch: 0, bearing: 0}` | Initial camera position (uncontrolled mode) |
 | `view_state` | `dict` | — | Controlled view state — when set, fully controls the camera |
 | `controller` | `bool \| dict` | `True` | Enable map interactions. `True` for all, `False` for none, or a dict for fine-grained control |
-| `enable_events` | `bool \| list[str]` | `False` | Enable events for callbacks. `False`, `True` (all), or `['click', 'hover']` |
+| `enable_events` | `bool \| list[str]` | `False` | Enable events for callbacks. `False`, `True` (all), or list like `['click', 'hover', 'dataLoadError']` |
 | `tooltip` | `bool \| dict` | `False` | Tooltip on hover. `True` for default, or `{html: "template {property}", style: {}}` |
 | `style` | `dict` | — | CSS style dict for the container element |
 | `maplibre_config` | `dict` | — | MapLibre GL JS configuration (see [MapLibre API](maplibre.md)) |
@@ -33,6 +33,8 @@ These props are updated by the component and can be read in Dash callbacks:
 | `click_info` | `dict` | Information about the last clicked feature |
 | `hover_info` | `dict` | Information about the currently hovered feature |
 | `map_style_loaded` | `bool` | `True` when the MapLibre style has finished loading |
+| `data_load_info` | `dict` | Information about the last successful remote data load. Contains `layerId`, `featureCount`, `timestamp` |
+| `data_load_error` | `dict` | Information about the last data load error. Contains `layerId`, `error`, `timestamp` |
 
 ## View State
 
@@ -57,9 +59,14 @@ DeckGL(id='map', enable_events=True, ...)
 # Enable specific events only
 DeckGL(id='map', enable_events=['click', 'hover'], ...)
 
+# Enable data loading events (for remote URL layers)
+DeckGL(id='map', enable_events=['dataLoad', 'dataLoadError'], ...)
+
 # No events (default)
 DeckGL(id='map', enable_events=False, ...)
 ```
+
+Available event types: `'click'`, `'hover'`, `'viewStateChange'`, `'dataLoad'`, `'dataLoadError'`.
 
 ## Tooltip Configuration
 
@@ -143,3 +150,98 @@ def load_data(n):
 - Dash `Patch()` works naturally since `layer_data` is a dict prop.
 
 See the [Layer Data Updates Guide](../guides/layer-data-updates.md) for detailed patterns.
+
+## Remote Data Loading
+
+Layers can load data directly from a remote URL in the browser, bypassing the Dash server. This is useful when the data is served by an external server, or when the browser needs to present client certificates (mTLS) that the server-side application does not have access to.
+
+Pass a URL string as the `data` prop and use `load_options` to configure the fetch request:
+
+```python
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import GeoJsonLayer, TileLayer
+
+DeckGL(
+    id='map',
+    layers=[
+        TileLayer(id='basemap', data='https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        GeoJsonLayer(
+            id='remote-data',
+            data='https://secure-server.com/api/features.geojson',
+            load_options={
+                'fetch': {
+                    'credentials': 'include',  # send cookies and client certificates
+                    'mode': 'cors',
+                    'headers': {'X-Custom-Header': 'value'},
+                }
+            },
+            get_fill_color='#FF8C00',
+            pickable=True,
+        ),
+    ],
+    initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11},
+    enable_events=['dataLoadError'],  # opt-in to error callbacks
+)
+```
+
+### `load_options`
+
+The `load_options` dict is passed through to deck.gl's loaders.gl. The most common sub-key is `fetch`, which accepts all standard [fetch API `RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options) options:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `credentials` | `str` | `'include'` to send cookies/certs cross-origin, `'same-origin'` (default), or `'omit'` |
+| `mode` | `str` | `'cors'` (default for cross-origin), `'same-origin'`, or `'no-cors'` |
+| `headers` | `dict` | Custom HTTP headers to send with the request |
+| `cache` | `str` | Cache mode: `'default'`, `'no-cache'`, `'reload'`, `'force-cache'`, `'only-if-cached'` |
+
+`load_options` is available on all layer types: GeoJsonLayer, ScatterplotLayer, PathLayer, LineLayer, ArcLayer, IconLayer, TextLayer, PolygonLayer, TileLayer, MVTLayer, and BitmapLayer. Other layers can pass it via `**kwargs`.
+
+### Client Certificate Authentication (mTLS)
+
+When the remote server requires a client certificate, set `credentials: 'include'` in `load_options`. The browser will present certificates from the OS/browser certificate store during the TLS handshake. No JavaScript code is needed to select the certificate -- the browser handles this automatically based on its configuration.
+
+!!! note "CORS requirements"
+    The remote server must return appropriate CORS headers. For credentialed requests (`credentials: 'include'`), the server **must** set `Access-Control-Allow-Credentials: true` and **cannot** use `Access-Control-Allow-Origin: *` -- it must specify the exact requesting origin.
+
+### Data Load Events
+
+To receive callbacks when remote data loads or fails, add `'dataLoad'` and/or `'dataLoadError'` to `enable_events`:
+
+```python
+from dash import Dash, callback, Output, Input, html
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import GeoJsonLayer
+
+app = Dash(__name__)
+
+app.layout = html.Div([
+    DeckGL(
+        id='map',
+        layers=[
+            GeoJsonLayer(
+                id='remote-data',
+                data='https://example.com/data.geojson',
+                load_options={'fetch': {'credentials': 'include'}},
+                get_fill_color='#FF8C00',
+            ),
+        ],
+        initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11},
+        enable_events=['dataLoad', 'dataLoadError'],
+    ),
+    html.Div(id='status'),
+])
+
+@callback(Output('status', 'children'), Input('map', 'data_load_info'))
+def on_data_loaded(info):
+    if info is None:
+        return 'Loading...'
+    return f"Loaded {info['featureCount']} features from layer '{info['layerId']}'"
+
+@callback(Output('status', 'children', allow_duplicate=True),
+          Input('map', 'data_load_error'), prevent_initial_call=True)
+def on_data_error(error):
+    if error is None:
+        return ''
+    return f"Error loading layer '{error['layerId']}': {error['error']}"
+```

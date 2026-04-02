@@ -41,6 +41,7 @@ if __name__ == '__main__':
 - **MapLibre GL JS Basemaps**: Vector tile basemaps with automatic view state synchronization
 - **Tile-based Maps**: TileLayer support for OSM, CARTO, and custom tile servers
 - **Per-Layer Data Updates**: Update individual layer data without resending all layers via `layer_data` prop
+- **Remote Data Loading**: Load data directly from external servers in the browser with `load_options`, including client certificate (mTLS) support
 - **Data-driven Styling**: Built-in color scales powered by chroma.js
 
 ## MapLibre GL JS Integration
@@ -195,6 +196,41 @@ hexagon_layer = HexagonLayer(
 **Diverging**: `Spectral`, `RdYlGn`, `RdBu`, `PiYG`, `PRGn`, `RdYlBu`, `BrBG`, `RdGy`, `PuOr`
 
 **Perceptually Uniform**: `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `turbo`
+
+## Remote Data Loading
+
+Layers can fetch data directly from an external server in the browser, bypassing the Dash server. This supports client certificate authentication (mTLS) where the browser presents certificates from the OS/browser store.
+
+```python
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import GeoJsonLayer, TileLayer
+
+DeckGL(
+    id='map',
+    layers=[
+        TileLayer(id='basemap', data='https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        GeoJsonLayer(
+            id='remote-data',
+            data='https://secure-server.com/api/features.geojson',
+            load_options={
+                'fetch': {
+                    'credentials': 'include',  # send cookies and client certificates
+                    'mode': 'cors',
+                    'headers': {'X-Custom-Header': 'value'},
+                }
+            },
+            get_fill_color='#FF8C00',
+            pickable=True,
+        ),
+    ],
+    initial_view_state={'longitude': -122.4, 'latitude': 37.8, 'zoom': 11},
+    enable_events=['dataLoadError'],  # opt-in to error callbacks
+)
+```
+
+The `load_options` prop is available on all layer types. Use `enable_events=['dataLoad', 'dataLoadError']` to receive Dash callbacks via `data_load_info` and `data_load_error` output props when remote data loads or fails.
+
+See the [API docs](docs/api/deckgl-component.md#remote-data-loading) for full details on CORS requirements and mTLS configuration.
 
 ## Contributing
 

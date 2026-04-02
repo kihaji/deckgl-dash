@@ -73,6 +73,7 @@ const DeckGL = ({
     const accumulatedLayerDataRef = useRef({});
 
     // Create deck.gl layers from JSON configs, merging per-layer data overrides
+    const layerOptions = useMemo(() => ({ setProps, enableEvents }), [setProps, enableEvents]);
     const deckLayers = useMemo(() => {
         // Merge incoming layerData into the accumulated ref before reading it
         if (layerData && Object.keys(layerData).length > 0) {
@@ -83,7 +84,7 @@ const DeckGL = ({
         debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: Object.keys(mergedData).length > 0 });
         console.time('[DeckGL] createLayers');
         if (Object.keys(mergedData).length === 0) {
-            const result = createLayers(baseConfigs);
+            const result = createLayers(baseConfigs, layerOptions);
             console.timeEnd('[DeckGL] createLayers');
             return result;
         }
@@ -94,10 +95,10 @@ const DeckGL = ({
             }
             return config;
         });
-        const result = createLayers(mergedConfigs);
+        const result = createLayers(mergedConfigs, layerOptions);
         console.timeEnd('[DeckGL] createLayers');
         return result;
-    }, [layers, layerData]);
+    }, [layers, layerData, layerOptions]);
 
     // View state change handler (for both internal state and Dash callbacks)
     const handleViewStateChange = useCallback(({ viewState: newViewState }) => {
@@ -600,6 +601,20 @@ DeckGL.propTypes = {
      * Updated when hover events are enabled.
      */
     hoverInfo: PropTypes.object,
+
+    /**
+     * (Output) Information about the last successful remote data load.
+     * Updated when 'dataLoad' is included in enableEvents and a layer loads data from a URL.
+     * Contains: { layerId, featureCount, timestamp }
+     */
+    dataLoadInfo: PropTypes.object,
+
+    /**
+     * (Output) Information about the last data load error.
+     * Updated when 'dataLoadError' is included in enableEvents and a layer fails to load data from a URL.
+     * Contains: { layerId, error, timestamp }
+     */
+    dataLoadError: PropTypes.object,
 
     /**
      * Dash-assigned callback that should be called to report property changes
