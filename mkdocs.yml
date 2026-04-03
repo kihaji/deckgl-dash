@@ -35,10 +35,13 @@ nav:
       - Quick Start: getting-started/quick-start.md
   - Guides:
       - MapLibre Integration: guides/maplibre-integration.md
+      - Drawing & Editing: guides/drawing-and-editing.md
       - Layer Data Updates: guides/layer-data-updates.md
+      - Layer Ordering: guides/layer-ordering.md
       - Coordinate Conversion: guides/coordinate-conversion.md
   - API Reference:
       - DeckGL Component: api/deckgl-component.md
+      - Drawing & Editing: api/drawing.md
       - Core Layers: api/core-layers.md
       - Geo Layers: api/geo-layers.md
       - Aggregation Layers: api/aggregation-layers.md

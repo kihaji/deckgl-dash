@@ -44,6 +44,39 @@ Keyword arguments:
     loads data from a URL. Contains: { layerId, featureCount,
     timestamp }.
 
+- drawingConfig (dict; optional):
+    Drawing/editing configuration. When provided with a drawing mode,
+    an EditableGeoJsonLayer is added on top of all other layers.
+    Shape: - mode: string - Drawing mode ('draw_line', 'draw_polygon',
+    'draw_circle',   'draw_rectangle', 'draw_square', 'draw_point',
+    'view', 'modify', 'translate') - selectedFeatureIndexes: number[]
+    - Indexes of features selected for editing - style: object - Style
+    overrides for the editable layer   - fillColor: [r,g,b,a] - Fill
+    color for drawn features   - lineColor: [r,g,b,a] - Line/stroke
+    color   - lineWidth: number - Line width in pixels   -
+    tentativeFillColor: [r,g,b,a] - Fill color while drawing   -
+    tentativeLineColor: [r,g,b,a] - Line color while drawing   -
+    editHandlePointColor: [r,g,b,a] - Color of vertex edit handles.
+
+    `drawingConfig` is a dict with keys:
+
+    - mode (string; optional)
+
+    - selectedFeatureIndexes (list of numbers; optional)
+
+    - style (dict; optional)
+
+    - deleteSelected (boolean; optional)
+
+- drawingEvent (dict; optional):
+    (Output) Information about the last drawing event. Contains: {
+    type, featureCount, timestamp }.
+
+- drawingFeatures (dict; optional):
+    (Input/Output) GeoJSON FeatureCollection of drawn/edited features.
+    Can be set from Python to pre-populate features, and is updated
+    from JS when features are added/modified.
+
 - enableEvents (boolean | list of strings; default False):
     Enable events for Dash callbacks. Events are disabled by default
     for performance. Can be: - False: No events (default) - True:
@@ -75,6 +108,13 @@ Keyword arguments:
     Merges with the `layers` prop — only the `data` field of matching
     layers is replaced. Allows updating individual layer data without
     resending the entire layers array.
+
+- layerOrder (list of strings; optional):
+    Layer rendering order as an array of layer IDs from bottom to top.
+    When provided, layers are reordered to match this sequence without
+    resending layer data. Layers not listed are appended at the top.
+    Set to an empty array or None to use the original layers array
+    order.
 
 - layers (list of dicts; optional):
     Array of layer configurations. Each layer should have a '@@type'
@@ -168,12 +208,23 @@ Keyword arguments:
         }
     )
 
+    DrawingConfig = TypedDict(
+        "DrawingConfig",
+            {
+            "mode": NotRequired[str],
+            "selectedFeatureIndexes": NotRequired[typing.Sequence[NumberType]],
+            "style": NotRequired[dict],
+            "deleteSelected": NotRequired[bool]
+        }
+    )
+
 
     def __init__(
         self,
         id: typing.Optional[typing.Union[str, dict]] = None,
         layers: typing.Optional[typing.Sequence[dict]] = None,
         layerData: typing.Optional[typing.Dict[typing.Union[str, float, int], typing.Any]] = None,
+        layerOrder: typing.Optional[typing.Sequence[str]] = None,
         initialViewState: typing.Optional["InitialViewState"] = None,
         viewState: typing.Optional["ViewState"] = None,
         controller: typing.Optional[typing.Union[bool, dict]] = None,
@@ -186,11 +237,14 @@ Keyword arguments:
         hoverInfo: typing.Optional[dict] = None,
         dataLoadInfo: typing.Optional[dict] = None,
         dataLoadError: typing.Optional[dict] = None,
+        drawingConfig: typing.Optional["DrawingConfig"] = None,
+        drawingFeatures: typing.Optional[dict] = None,
+        drawingEvent: typing.Optional[dict] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

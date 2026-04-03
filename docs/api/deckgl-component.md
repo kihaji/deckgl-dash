@@ -13,6 +13,7 @@ from deckgl_dash import DeckGL
 | `id` | `str` | — | Component ID for Dash callbacks |
 | `layers` | `list[dict]` | `[]` | Array of deck.gl layer configurations. Each layer needs a `@@type` property (or use Python helper classes) |
 | `layer_data` | `dict[str, Any]` | `None` | Per-layer data overrides. Dict mapping layer IDs to data values. See [Updating Layer Data](#updating-layer-data) |
+| `layer_order` | `list[str]` | `None` | Layer rendering order as a list of layer IDs from bottom to top. See [Layer Ordering](#layer-ordering) |
 | `initial_view_state` | `dict` | `{longitude: -122.4, latitude: 37.8, zoom: 11, pitch: 0, bearing: 0}` | Initial camera position (uncontrolled mode) |
 | `view_state` | `dict` | — | Controlled view state — when set, fully controls the camera |
 | `controller` | `bool \| dict` | `True` | Enable map interactions. `True` for all, `False` for none, or a dict for fine-grained control |
@@ -20,6 +21,8 @@ from deckgl_dash import DeckGL
 | `tooltip` | `bool \| dict` | `False` | Tooltip on hover. `True` for default, or `{html: "template {property}", style: {}}` |
 | `style` | `dict` | — | CSS style dict for the container element |
 | `maplibre_config` | `dict` | — | MapLibre GL JS configuration (see [MapLibre API](maplibre.md)) |
+| `drawing_config` | `DrawingConfig \| dict` | `None` | Drawing/editing configuration (see [Drawing & Editing](drawing.md)) |
+| `drawing_features` | `dict` | `None` | (Input/Output) GeoJSON FeatureCollection of drawn features |
 
 !!! warning "controller is ignored in MapLibre mode"
     When `maplibre_config` is provided, the `controller` prop has no effect. Use `map_options` in `MapLibreConfig` instead. See the [MapLibre Integration Guide](../guides/maplibre-integration.md#controller-gotcha).
@@ -35,6 +38,7 @@ These props are updated by the component and can be read in Dash callbacks:
 | `map_style_loaded` | `bool` | `True` when the MapLibre style has finished loading |
 | `data_load_info` | `dict` | Information about the last successful remote data load. Contains `layerId`, `featureCount`, `timestamp` |
 | `data_load_error` | `dict` | Information about the last data load error. Contains `layerId`, `error`, `timestamp` |
+| `drawing_event` | `dict` | Information about the last drawing event. Contains `type`, `featureCount`, `timestamp`. See [Drawing & Editing](drawing.md) |
 
 ## View State
 
@@ -150,6 +154,46 @@ def load_data(n):
 - Dash `Patch()` works naturally since `layer_data` is a dict prop.
 
 See the [Layer Data Updates Guide](../guides/layer-data-updates.md) for detailed patterns.
+
+## Layer Ordering
+
+deck.gl renders layers in array order — the first layer in the list is drawn at the bottom, the last is drawn on top. The `layer_order` prop lets you control this rendering order dynamically without resending layer data.
+
+```python
+# Layers render in array order by default (basemap bottom, points top)
+DeckGL(
+    id='map',
+    layers=[
+        TileLayer(id='basemap', data='https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        GeoJsonLayer(id='polygons', data=polygon_data, get_fill_color='#FF8C00'),
+        ScatterplotLayer(id='points', data=point_data, get_position='@@=coordinates'),
+    ],
+)
+
+# Set explicit order (points below polygons)
+DeckGL(
+    id='map',
+    layers=[...],
+    layer_order=['basemap', 'points', 'polygons'],
+)
+```
+
+Reorder dynamically via a Dash callback:
+
+```python
+@callback(Output('map', 'layerOrder'), Input('order-dropdown', 'value'))
+def reorder(value):
+    if value == 'points-on-top':
+        return ['basemap', 'polygons', 'points']
+    return ['basemap', 'points', 'polygons']
+```
+
+- When `layer_order` is `None` or an empty list, layers render in their original array order.
+- Layer IDs in `layer_order` that don't match any layer are silently skipped.
+- Layers not listed in `layer_order` are appended at the top.
+- Works independently of `layer_data` — you can update data and reorder in separate callbacks.
+
+See the [Layer Ordering Guide](../guides/layer-ordering.md) for detailed patterns.
 
 ## Remote Data Loading
 

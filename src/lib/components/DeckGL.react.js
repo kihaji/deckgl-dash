@@ -6,6 +6,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createLayers } from '../utils/layerRegistry';
 import { isEventEnabled } from '../utils/eventHandler';
+import { createEditableLayer, deleteFeatures, DRAG_DRAW_MODES, ACTIVE_DRAWING_MODES, getCursorForMode } from '../utils/drawingManager';
 
 /**
  * DeckGL component for Plotly Dash
@@ -25,10 +26,36 @@ const DEFAULT_VIEW_STATE = {
 const DEBUG_PERF = false;
 const debugLog = DEBUG_PERF ? (...args) => console.log('[DeckGL]', ...args) : () => {};
 
+/**
+ * Reorder layer configs according to a list of layer IDs (bottom to top).
+ * Layers not mentioned in the order array are appended at the top.
+ */
+function applyLayerOrder(configs, order) {
+    const configById = {};
+    for (const config of configs) {
+        if (config.id) configById[config.id] = config;
+    }
+    const ordered = [];
+    const placed = new Set();
+    for (const id of order) {
+        if (id in configById) {
+            ordered.push(configById[id]);
+            placed.add(id);
+        }
+    }
+    for (const config of configs) {
+        if (config.id && !placed.has(config.id)) ordered.push(config);
+    }
+    return ordered;
+}
+
+const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] };
+
 const DeckGL = ({
     id,
     layers = [],
     layerData,
+    layerOrder,
     initialViewState = DEFAULT_VIEW_STATE,
     viewState: controlledViewState,
     controller = true,
@@ -36,6 +63,9 @@ const DeckGL = ({
     tooltip = false,
     style = {},
     maplibreConfig = null,
+    drawingConfig = null,
+    drawingFeatures = null,
+    drawingEvent = null,
     setProps,
 }) => {
     // Track if layers reference changed
@@ -83,22 +113,95 @@ const DeckGL = ({
         const mergedData = accumulatedLayerDataRef.current;
         debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: Object.keys(mergedData).length > 0 });
         console.time('[DeckGL] createLayers');
-        if (Object.keys(mergedData).length === 0) {
-            const result = createLayers(baseConfigs, layerOptions);
-            console.timeEnd('[DeckGL] createLayers');
-            return result;
+        let mergedConfigs = baseConfigs;
+        if (Object.keys(mergedData).length > 0) {
+            mergedConfigs = baseConfigs.map(config => {
+                const lid = config.id;
+                if (lid && lid in mergedData) {
+                    return { ...config, data: mergedData[lid] };
+                }
+                return config;
+            });
         }
-        const mergedConfigs = baseConfigs.map(config => {
-            const lid = config.id;
-            if (lid && lid in mergedData) {
-                return { ...config, data: mergedData[lid] };
-            }
-            return config;
-        });
+        if (layerOrder && Array.isArray(layerOrder) && layerOrder.length > 0) {
+            mergedConfigs = applyLayerOrder(mergedConfigs, layerOrder);
+        }
         const result = createLayers(mergedConfigs, layerOptions);
         console.timeEnd('[DeckGL] createLayers');
         return result;
-    }, [layers, layerData, layerOptions]);
+    }, [layers, layerData, layerOrder, layerOptions]);
+
+    // ===========================================
+    // Drawing state
+    // ===========================================
+    const [internalFeatures, setInternalFeatures] = useState(
+        drawingFeatures || EMPTY_FEATURE_COLLECTION
+    );
+    const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState([]);
+
+    // Sync external drawingFeatures prop into internal state (e.g., Python clears or sets features)
+    const prevDrawingFeaturesRef = useRef(drawingFeatures);
+    useEffect(() => {
+        if (drawingFeatures !== prevDrawingFeaturesRef.current) {
+            prevDrawingFeaturesRef.current = drawingFeatures;
+            setInternalFeatures(drawingFeatures || EMPTY_FEATURE_COLLECTION);
+            setSelectedFeatureIndexes([]);
+        }
+    }, [drawingFeatures]);
+
+    // Clear selection when switching modes
+    const prevModeRef = useRef(drawingConfig?.mode);
+    useEffect(() => {
+        if (drawingConfig?.mode !== prevModeRef.current) {
+            prevModeRef.current = drawingConfig?.mode;
+            setSelectedFeatureIndexes([]);
+        }
+    }, [drawingConfig?.mode]);
+
+    // Handle delete: when drawingConfig.deleteSelected is set and we have a selection
+    useEffect(() => {
+        if (drawingConfig?.deleteSelected && selectedFeatureIndexes.length > 0) {
+            const updated = deleteFeatures(internalFeatures, selectedFeatureIndexes);
+            setInternalFeatures(updated);
+            setSelectedFeatureIndexes([]);
+            if (setProps) {
+                setProps({
+                    drawingFeatures: updated,
+                    drawingEvent: {
+                        type: 'deleteFeature',
+                        featureCount: updated.features.length,
+                        timestamp: Date.now(),
+                    },
+                    // Reset deleteSelected flag so it can be triggered again
+                    drawingConfig: { ...drawingConfig, deleteSelected: false },
+                });
+            }
+        }
+    }, [drawingConfig?.deleteSelected]);
+
+    // Build final layers list: base layers + optional editable drawing layer on top
+    const allLayers = useMemo(() => {
+        if (!drawingConfig || !drawingConfig.mode || drawingConfig.mode === 'view') {
+            return deckLayers;
+        }
+        const editableLayer = createEditableLayer(
+            drawingConfig,
+            internalFeatures,
+            selectedFeatureIndexes,
+            setInternalFeatures,
+            setSelectedFeatureIndexes,
+            setProps
+        );
+        return editableLayer ? [...deckLayers, editableLayer] : deckLayers;
+    }, [deckLayers, drawingConfig, internalFeatures, selectedFeatureIndexes, setProps]);
+
+    // Determine drawing mode state for controller/cursor adjustments
+    const drawingMode = drawingConfig?.mode || null;
+    const isDragDrawMode = drawingMode && DRAG_DRAW_MODES.has(drawingMode);
+    const isActiveDrawingMode = drawingMode && (ACTIVE_DRAWING_MODES.has(drawingMode) || drawingMode === 'modify' || drawingMode === 'translate');
+
+    // Cursor style for drawing modes
+    const drawingCursor = drawingMode ? getCursorForMode(drawingMode) : null;
 
     // View state change handler (for both internal state and Dash callbacks)
     const handleViewStateChange = useCallback(({ viewState: newViewState }) => {
@@ -249,7 +352,7 @@ const DeckGL = ({
         // Set interleaved=true only if you need deck.gl layers below MapLibre labels
         const overlay = new MapboxOverlay({
             interleaved: maplibreConfig.interleaved === true,
-            layers: deckLayers,
+            layers: allLayers,
             onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
             onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
             getTooltip: tooltip ? getTooltip : undefined,
@@ -331,6 +434,23 @@ const DeckGL = ({
         };
     }, []);
 
+    // Disable map interactions that conflict with drawing modes
+    useEffect(() => {
+        if (!mapRef.current) return;
+        // Disable double-click zoom in any active drawing/editing mode
+        if (isActiveDrawingMode) {
+            mapRef.current.doubleClickZoom.disable();
+        } else {
+            mapRef.current.doubleClickZoom.enable();
+        }
+        // Disable drag panning for drag-draw modes (circle, rectangle, square)
+        if (isDragDrawMode) {
+            mapRef.current.dragPan.disable();
+        } else {
+            mapRef.current.dragPan.enable();
+        }
+    }, [isDragDrawMode, isActiveDrawingMode]);
+
     // Update overlay layers when deck.gl layers change
     // Note: We intentionally exclude callback functions from deps - they use refs internally
     useEffect(() => {
@@ -338,7 +458,7 @@ const DeckGL = ({
         if (overlayRef.current) {
             console.time('[DeckGL] overlay.setProps');
             overlayRef.current.setProps({
-                layers: deckLayers,
+                layers: allLayers,
                 onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
                 onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
                 getTooltip: tooltip ? getTooltip : undefined,
@@ -346,7 +466,7 @@ const DeckGL = ({
             console.timeEnd('[DeckGL] overlay.setProps');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [deckLayers]);
+    }, [allLayers]);
 
     // Sync controlled viewState to MapLibre map (for programmatic control)
     useEffect(() => {
@@ -372,24 +492,37 @@ const DeckGL = ({
             <div id={id} style={containerStyle}>
                 <div
                     ref={mapContainerRef}
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        ...(drawingCursor ? { cursor: drawingCursor } : {}),
+                    }}
                 />
             </div>
         );
     }
 
-    // Standard deck.gl-only mode (backward compatible)
+    // Standard deck.gl-only mode — compute effective controller with drawing overrides
+    const effectiveController = useMemo(() => {
+        if (controller === false) return false;
+        const base = typeof controller === 'object' ? controller : {};
+        if (isActiveDrawingMode) {
+            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
+        }
+        return controller || true;
+    }, [controller, isActiveDrawingMode, isDragDrawMode]);
+
     return (
-        <div id={id} style={containerStyle}>
+        <div id={id} style={{ ...containerStyle, ...(drawingCursor ? { cursor: drawingCursor } : {}) }}>
             <DeckGLComponent
                 viewState={currentViewState}
                 onViewStateChange={handleViewStateChange}
-                controller={controller !== false ? (controller || true) : false}
-                layers={deckLayers}
+                controller={effectiveController}
+                layers={allLayers}
                 onClick={isEventEnabled('click', enableEvents) ? handleClick : undefined}
                 onHover={isEventEnabled('hover', enableEvents) ? handleHover : undefined}
                 getTooltip={tooltip ? getTooltip : undefined}
                 pickingRadius={5}
+                getCursor={() => drawingCursor || 'grab'}
             />
         </div>
     );
@@ -498,6 +631,14 @@ DeckGL.propTypes = {
      * Allows updating individual layer data without resending the entire layers array.
      */
     layerData: PropTypes.objectOf(PropTypes.any),
+
+    /**
+     * Layer rendering order as an array of layer IDs from bottom to top.
+     * When provided, layers are reordered to match this sequence without
+     * resending layer data. Layers not listed are appended at the top.
+     * Set to an empty array or null to use the original layers array order.
+     */
+    layerOrder: PropTypes.arrayOf(PropTypes.string),
 
     /**
      * Initial view state for uncontrolled mode. Sets the initial camera position.
@@ -615,6 +756,42 @@ DeckGL.propTypes = {
      * Contains: { layerId, error, timestamp }
      */
     dataLoadError: PropTypes.object,
+
+    /**
+     * Drawing/editing configuration. When provided with a drawing mode,
+     * an EditableGeoJsonLayer is added on top of all other layers.
+     *
+     * Shape:
+     * - mode: string - Drawing mode ('draw_line', 'draw_polygon', 'draw_circle',
+     *   'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate')
+     * - selectedFeatureIndexes: number[] - Indexes of features selected for editing
+     * - style: object - Style overrides for the editable layer
+     *   - fillColor: [r,g,b,a] - Fill color for drawn features
+     *   - lineColor: [r,g,b,a] - Line/stroke color
+     *   - lineWidth: number - Line width in pixels
+     *   - tentativeFillColor: [r,g,b,a] - Fill color while drawing
+     *   - tentativeLineColor: [r,g,b,a] - Line color while drawing
+     *   - editHandlePointColor: [r,g,b,a] - Color of vertex edit handles
+     */
+    drawingConfig: PropTypes.shape({
+        mode: PropTypes.string,
+        selectedFeatureIndexes: PropTypes.arrayOf(PropTypes.number),
+        style: PropTypes.object,
+        deleteSelected: PropTypes.bool,
+    }),
+
+    /**
+     * (Input/Output) GeoJSON FeatureCollection of drawn/edited features.
+     * Can be set from Python to pre-populate features, and is updated
+     * from JS when features are added/modified.
+     */
+    drawingFeatures: PropTypes.object,
+
+    /**
+     * (Output) Information about the last drawing event.
+     * Contains: { type, featureCount, timestamp }
+     */
+    drawingEvent: PropTypes.object,
 
     /**
      * Dash-assigned callback that should be called to report property changes

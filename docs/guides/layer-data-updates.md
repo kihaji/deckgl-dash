@@ -79,6 +79,7 @@ Each callback only sends its own layer's data. Dash merges the patches on the cl
 | Updating a layer's data | `layer_data` |
 | Loading data after initial render | `layer_data` |
 | Independent per-layer data updates | `layer_data` + `Patch()` |
+| Changing the rendering order | `layer_order` (see [Layer Ordering](layer-ordering.md)) |
 
 ## Migration from `dcc.Store` + Full Rebuild
 
