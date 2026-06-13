@@ -47,8 +47,11 @@ from .coordinates import CoordinateConverter
 # Import drawing utilities
 from .drawing import DrawingConfig, DrawingStyle, DRAWING_MODES, EMPTY_FEATURE_COLLECTION
 
+# Bounds helper for the fit_bounds prop
+from .bounds import compute_bounds
+
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter', 'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter', 'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION', 'compute_bounds']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '

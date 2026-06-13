@@ -50,6 +50,10 @@ class DeckGL(_DeckGLBase):
         layer_order: Layer rendering order as a list of layer IDs from bottom to top.
         initial_view_state: Initial view state (longitude, latitude, zoom, pitch, bearing).
         view_state: Controlled view state for programmatic control.
+        fit_bounds: Fit the camera to a bounding box. Dict with keys: `bounds`
+            ([[west, south], [east, north]], required), `padding` (pixels, default 20),
+            and `maxZoom` (default 20). Viewport-aware on both render paths. See
+            `deckgl_dash.bounds.compute_bounds` for building `bounds` from features.
         controller: Enable map interactions (True/False or fine-grained config dict).
         enable_events: Event opt-in (False, True, or list like ['click', 'hover', 'dataLoadError']).
         tooltip: Tooltip config (False, True, or dict with html/style).
@@ -73,6 +77,7 @@ class DeckGL(_DeckGLBase):
         layer_order: Optional[Sequence[str]] = None,
         initial_view_state: Optional[Dict[str, Any]] = None,
         view_state: Optional[Dict[str, Any]] = None,
+        fit_bounds: Optional[Dict[str, Any]] = None,
         controller: Optional[Union[bool, dict]] = None,
         enable_events: Optional[Union[bool, Sequence[str]]] = None,
         tooltip: Optional[Union[bool, dict]] = None,
@@ -104,6 +109,7 @@ class DeckGL(_DeckGLBase):
             layerOrder = list(layer_order) if layer_order is not None else None,
             initialViewState = initial_view_state,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any] for ergonomics
             viewState = view_state,  # type: ignore[arg-type]
+            fitBounds = fit_bounds,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any] for ergonomics
             controller = controller,
             enableEvents = enable_events,
             tooltip = tooltip,

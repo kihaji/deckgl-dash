@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { WebMercatorViewport } from '@deck.gl/core';
 import { DeckGL as DeckGLComponent } from '@deck.gl/react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import maplibregl from 'maplibre-gl';
@@ -58,6 +59,7 @@ const DeckGL = ({
     layerOrder,
     initialViewState = DEFAULT_VIEW_STATE,
     viewState: controlledViewState,
+    fitBounds = null,
     controller = true,
     enableEvents = false,
     tooltip = false,
@@ -77,6 +79,8 @@ const DeckGL = ({
     // Refs for MapLibre mode
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
+    // Ref to the deck-only container div (used to read pixel dimensions for fitBounds)
+    const containerRef = useRef(null);
     const overlayRef = useRef(null);
     const mapViewStateRef = useRef(null);
     // Keep a ref to maplibreConfig so the style.load handler always reads fresh values
@@ -482,6 +486,59 @@ const DeckGL = ({
         }
     }, [controlledViewState]);
 
+    // Fit the camera to a bounding box. `fitBounds` shape:
+    //   { bounds: [[west, south], [east, north]], padding?: number, maxZoom?: number }
+    // MapLibre mode uses the map's native, viewport-aware fitBounds.
+    useEffect(() => {
+        if (!fitBounds || !Array.isArray(fitBounds.bounds) || !mapRef.current) {
+            return;
+        }
+        const [[west, south], [east, north]] = fitBounds.bounds;
+        const padding = fitBounds.padding ?? 20;
+        const maxZoom = fitBounds.maxZoom ?? 20;
+        // Guard the moveend handler against firing a Dash viewState callback for this programmatic move.
+        isUpdatingViewRef.current = true;
+        try {
+            mapRef.current.fitBounds([[west, south], [east, north]], { padding, maxZoom, duration: 0 });
+        } catch (e) {
+            console.warn('fitBounds (MapLibre) failed:', e);
+        }
+    }, [fitBounds]);
+
+    // Deck-only mode: compute a fitted view state with WebMercatorViewport using the
+    // container's real pixel size, then drive the uncontrolled camera.
+    useEffect(() => {
+        if (!fitBounds || !Array.isArray(fitBounds.bounds) || maplibreConfig) {
+            return;
+        }
+        const el = containerRef.current;
+        if (!el || !el.clientWidth || !el.clientHeight) {
+            return;
+        }
+        const width = el.clientWidth;
+        const height = el.clientHeight;
+        const [[west, south], [east, north]] = fitBounds.bounds;
+        const padding = fitBounds.padding ?? 20;
+        const maxZoom = fitBounds.maxZoom ?? 20;
+        setInternalViewState(prev => {
+            try {
+                // Degenerate bounds (single point / zero span): fall back to a sane zoom.
+                if (west === east && south === north) {
+                    return { ...prev, longitude: west, latitude: south, zoom: Math.min(maxZoom, 15) };
+                }
+                const vp = new WebMercatorViewport({
+                    width, height,
+                    longitude: prev.longitude, latitude: prev.latitude, zoom: prev.zoom,
+                });
+                const fitted = vp.fitBounds([[west, south], [east, north]], { padding });
+                return { ...prev, longitude: fitted.longitude, latitude: fitted.latitude, zoom: Math.min(fitted.zoom, maxZoom) };
+            } catch (e) {
+                console.warn('fitBounds (deck-only) failed:', e);
+                return prev;
+            }
+        });
+    }, [fitBounds]);
+
     // ===========================================
     // Render
     // ===========================================
@@ -512,7 +569,7 @@ const DeckGL = ({
     }, [controller, isActiveDrawingMode, isDragDrawMode]);
 
     return (
-        <div id={id} style={{ ...containerStyle, ...(drawingCursor ? { cursor: drawingCursor } : {}) }}>
+        <div ref={containerRef} id={id} style={{ ...containerStyle, ...(drawingCursor ? { cursor: drawingCursor } : {}) }}>
             <DeckGLComponent
                 viewState={currentViewState}
                 onViewStateChange={handleViewStateChange}
@@ -662,6 +719,23 @@ DeckGL.propTypes = {
         zoom: PropTypes.number,
         pitch: PropTypes.number,
         bearing: PropTypes.number,
+    }),
+
+    /**
+     * Fit the camera to a geographic bounding box. Setting this prop drives the real
+     * camera: MapLibre mode uses the map's native `fitBounds`; deck-only mode uses
+     * `WebMercatorViewport.fitBounds` with the container's real pixel size. Both are
+     * viewport-aware, so the result frames the bounds tightly.
+     *
+     * Shape:
+     * - bounds: [[west, south], [east, north]] - the box to fit (required)
+     * - padding: number - pixels of padding around the bounds (default 20)
+     * - maxZoom: number - clamp the fitted zoom (default 20)
+     */
+    fitBounds: PropTypes.shape({
+        bounds: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.number)),
+        padding: PropTypes.number,
+        maxZoom: PropTypes.number,
     }),
 
     /**

@@ -83,6 +83,24 @@ Keyword arguments:
     Enable all events (click, hover, viewStateChange) - array: Enable
     specific events, e.g., ['click', 'hover'].
 
+- fitBounds (dict; optional):
+    Fit the camera to a geographic bounding box. Setting this prop
+    drives the real camera: MapLibre mode uses the map's native
+    `fitBounds`; deck-only mode uses `WebMercatorViewport.fitBounds`
+    with the container's real pixel size. Both are viewport-aware, so
+    the result frames the bounds tightly.  Shape: - bounds: [[west,
+    south], [east, north]] - the box to fit (required) - padding:
+    number - pixels of padding around the bounds (default 20) -
+    maxZoom: number - clamp the fitted zoom (default 20).
+
+    `fitBounds` is a dict with keys:
+
+    - bounds (list of list of numberss; optional)
+
+    - padding (number; optional)
+
+    - maxZoom (number; optional)
+
 - hoverInfo (dict; optional):
     (Output) Information about the currently hovered feature. Updated
     when hover events are enabled.
@@ -196,6 +214,15 @@ Keyword arguments:
         }
     )
 
+    FitBounds = TypedDict(
+        "FitBounds",
+            {
+            "bounds": NotRequired[typing.Sequence[typing.Sequence[NumberType]]],
+            "padding": NotRequired[NumberType],
+            "maxZoom": NotRequired[NumberType]
+        }
+    )
+
     MaplibreConfig = TypedDict(
         "MaplibreConfig",
             {
@@ -227,6 +254,7 @@ Keyword arguments:
         layerOrder: typing.Optional[typing.Sequence[str]] = None,
         initialViewState: typing.Optional["InitialViewState"] = None,
         viewState: typing.Optional["ViewState"] = None,
+        fitBounds: typing.Optional["FitBounds"] = None,
         controller: typing.Optional[typing.Union[bool, dict]] = None,
         enableEvents: typing.Optional[typing.Union[bool, typing.Sequence[str]]] = None,
         tooltip: typing.Optional[typing.Union[bool, dict]] = None,
@@ -242,9 +270,9 @@ Keyword arguments:
         drawingEvent: typing.Optional[dict] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

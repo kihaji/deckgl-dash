@@ -9,10 +9,9 @@ re-serialized.
 Usage:
     python examples/hexagon_deferred_load_demo.py
 """
-import math
 import random
 from dash import Dash, html, callback, Output, Input, ctx, no_update
-from deckgl_dash import DeckGL, color_range_from_scale
+from deckgl_dash import DeckGL, color_range_from_scale, compute_bounds
 from deckgl_dash.layers import HexagonLayer, ScatterplotLayer, process_layers
 from deckgl_dash.maplibre import MapLibreConfig, MapLibreStyle
 
@@ -38,38 +37,6 @@ def generate_random_points(count: int, center_lat: float, center_lon: float, rad
         {"coordinates": [center_lon + random.uniform(-radius, radius), center_lat + random.uniform(-radius, radius)], "value": random.randint(1, 100)}
         for _ in range(count)
     ]
-
-
-def zoom_to_fit(points: list, padding: float = 0.1) -> dict:
-    """Compute a viewState (center + zoom) that fits all points with padding.
-
-    Args:
-        points: List of dicts with a 'coordinates' key ([lon, lat]).
-        padding: Fractional padding added to the bounding box (0.1 = 10%).
-
-    Returns:
-        Dict with longitude, latitude, zoom, pitch, bearing.
-    """
-    lons = [p["coordinates"][0] for p in points]
-    lats = [p["coordinates"][1] for p in points]
-    min_lon, max_lon = min(lons), max(lons)
-    min_lat, max_lat = min(lats), max(lats)
-
-    center_lon = (min_lon + max_lon) / 2
-    center_lat = (min_lat + max_lat) / 2
-
-    lon_span = (max_lon - min_lon) * (1 + padding)
-    lat_span = (max_lat - min_lat) * (1 + padding)
-
-    if lon_span == 0 and lat_span == 0:
-        return {"longitude": center_lon, "latitude": center_lat, "zoom": 15, "pitch": 0, "bearing": 0}
-
-    # Approximate zoom: at zoom z the visible span is ~360/2^z degrees longitude
-    zoom_lon = math.log2(360 / lon_span) if lon_span > 0 else 20
-    zoom_lat = math.log2(180 / lat_span) if lat_span > 0 else 20
-    zoom = int(max(0, min(20, math.floor(min(zoom_lon, zoom_lat)))))
-
-    return {"longitude": center_lon, "latitude": center_lat, "zoom": zoom, "pitch": 0, "bearing": 0}
 
 
 app = Dash(__name__)
@@ -131,7 +98,7 @@ app.layout = html.Div([
 
 @callback(
     Output("map", "layerData"),
-    Output("map", "viewState"),
+    Output("map", "fitBounds"),
     Output("status", "children"),
     Input("btn-load", "n_clicks"),
     Input("btn-clear", "n_clicks"),
@@ -141,15 +108,16 @@ def update_data(load_clicks, clear_clicks):
     """Load or clear HexagonLayer data via the layerData prop.
 
     Only the hexagon data dict is serialized — the ScatterplotLayer
-    defined in the layout is completely untouched. The map automatically
-    zooms to fit the loaded data.
+    defined in the layout is completely untouched. On load, the map tightly
+    frames the loaded data via the viewport-aware `fitBounds` prop (MapLibre's
+    native fitBounds), instead of an approximate fixed-viewport zoom estimate.
     """
     triggered = ctx.triggered_id
 
     if triggered == "btn-load":
         points = generate_random_points(NUM_POINTS, DATA_LAT, DATA_LON)
-        view = zoom_to_fit(points)
-        return {"hexagons": points}, view, f"Loaded {NUM_POINTS:,} points."
+        fit = {"bounds": compute_bounds(points), "padding": 60, "maxZoom": 15}
+        return {"hexagons": points}, fit, f"Loaded {NUM_POINTS:,} points."
     elif triggered == "btn-clear":
         return {"hexagons": []}, no_update, "No data loaded."
     return no_update, no_update, no_update
