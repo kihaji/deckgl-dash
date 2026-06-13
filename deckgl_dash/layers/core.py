@@ -213,9 +213,23 @@ class PathLayer(BaseLayer):
         ...     multi_color=True,
         ...     pickable=True
         ... )
+
+    Direction-of-movement arrows:
+        Pass ``show_direction=True`` to overlay evenly-spaced arrowheads along the path,
+        rotated to the travel direction (path points are assumed ordered, e.g. by time).
+        The layer is serialized as ``@@type: "DirectedPathLayer"`` — a composite that
+        renders the line plus an arrow layer as one pickable object. Arrows are spaced in
+        screen pixels (``arrow_spacing``), so spacing/size stay constant across zoom, and
+        inherit the segment color (per-segment when ``multi_color``) unless ``arrow_color``
+        overrides. Combine with ``multi_color`` to show both speed (color) and direction.
+
+        >>> PathLayer(
+        ...     id='track', data=track, get_path='@@=path', get_color='@@=segmentColors',
+        ...     multi_color=True, show_direction=True, arrow_spacing=80, pickable=True
+        ... )
     """
     _layer_type = 'PathLayer'
-    _color_props = ('get_color',)
+    _color_props = ('get_color', 'arrow_color')
     _accessor_props = ('get_path', 'get_color', 'get_width')
 
     def __init__(
@@ -227,6 +241,11 @@ class PathLayer(BaseLayer):
         get_width: Optional[AccessorValue] = None,
         # Per-segment coloring: serialize as MultiColorPathLayer
         multi_color: Optional[bool] = None,
+        # Direction arrows: serialize as DirectedPathLayer (composite)
+        show_direction: Optional[bool] = None,
+        arrow_spacing: Optional[float] = None,  # pixels between arrows
+        arrow_size: Optional[float] = None,  # arrow size in pixels
+        arrow_color: Optional[ColorValue] = None,  # override; default inherits segment color
         # Width settings
         width_units: Optional[str] = None,  # 'meters' | 'common' | 'pixels'
         width_scale: Optional[float] = None,
@@ -252,11 +271,16 @@ class PathLayer(BaseLayer):
     ):
         super().__init__(id)
         self._multi_color = bool(multi_color)
+        self._show_direction = bool(show_direction)
         self._set_prop('data', data)
         self._set_prop('get_path', get_path)
         # Style accessors
         self._set_prop('get_color', get_color)
         self._set_prop('get_width', get_width)
+        # Direction arrows
+        self._set_prop('arrow_spacing', arrow_spacing)
+        self._set_prop('arrow_size', arrow_size)
+        self._set_prop('arrow_color', arrow_color)
         # Width settings
         self._set_prop('width_units', width_units)
         self._set_prop('width_scale', width_scale)
@@ -282,7 +306,11 @@ class PathLayer(BaseLayer):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        if self._multi_color:
+        if self._show_direction:
+            # Composite that draws the line + arrows; it picks its line sublayer via multiColor.
+            result['@@type'] = 'DirectedPathLayer'
+            result['multiColor'] = self._multi_color
+        elif self._multi_color:
             result['@@type'] = 'MultiColorPathLayer'
         return result
 

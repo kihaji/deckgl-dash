@@ -49,6 +49,7 @@ import {
 
 // Custom layers (local subclasses)
 import MultiColorPathLayer from '../layers/MultiColorPathLayer';
+import DirectedPathLayer from '../layers/DirectedPathLayer';
 
 /**
  * Registry mapping @@type strings to layer classes
@@ -71,6 +72,7 @@ const LAYER_REGISTRY = {
 
     // Custom layers
     MultiColorPathLayer,
+    DirectedPathLayer,
 
     // Geo layers
     GeohashLayer,

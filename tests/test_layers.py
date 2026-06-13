@@ -177,6 +177,34 @@ class TestPathLayer:
         assert d['getWidth'] == 4
         assert d['pickable'] is True
 
+    def test_show_direction_changes_type_and_forwards_multicolor(self):
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', get_color = '@@=segmentColors',
+                          multi_color = True, show_direction = True, arrow_spacing = 80, arrow_size = 20)
+        d = layer.to_dict()
+        assert d['@@type'] == 'DirectedPathLayer'
+        assert d['multiColor'] is True
+        assert d['arrowSpacing'] == 80
+        assert d['arrowSize'] == 20
+        # The composite reads the same per-segment accessor for line + arrow colors.
+        assert d['getColor'] == '@@=segmentColors'
+
+    def test_show_direction_without_multi_color(self):
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', show_direction = True)
+        d = layer.to_dict()
+        assert d['@@type'] == 'DirectedPathLayer'
+        assert d['multiColor'] is False
+
+    def test_multi_color_without_direction_stays_multicolor(self):
+        # multi_color alone (no direction) must NOT become DirectedPathLayer.
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', multi_color = True)
+        d = layer.to_dict()
+        assert d['@@type'] == 'MultiColorPathLayer'
+        assert 'multiColor' not in d
+
+    def test_arrow_color_normalized(self):
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', show_direction = True, arrow_color = '#000000')
+        assert layer.to_dict()['arrowColor'] == [0, 0, 0]
+
 
 class TestLineLayer:
     """Tests for LineLayer."""
