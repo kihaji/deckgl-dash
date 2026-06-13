@@ -153,6 +153,30 @@ class TestPathLayer:
         assert d['getColor'] == [255, 0, 0]
         assert d['getWidth'] == 5
 
+    def test_default_type_without_multi_color(self):
+        layer = PathLayer(id = 'path', data = [], get_path = '@@=path')
+        assert layer.to_dict()['@@type'] == 'PathLayer'
+
+    def test_multi_color_changes_type(self):
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', get_color = '@@=segmentColors', multi_color = True)
+        d = layer.to_dict()
+        assert d['@@type'] == 'MultiColorPathLayer'
+        # Per-segment accessor string must pass through untouched (no color normalization).
+        assert d['getColor'] == '@@=segmentColors'
+        assert d['getPath'] == '@@=path'
+
+    def test_multi_color_false_keeps_pathlayer(self):
+        layer = PathLayer(id = 'path', data = [], get_path = '@@=path', multi_color = False)
+        assert layer.to_dict()['@@type'] == 'PathLayer'
+
+    def test_multi_color_preserves_other_props(self):
+        layer = PathLayer(id = 'track', data = [], get_path = '@@=path', get_color = '@@=segmentColors',
+                          get_width = 4, pickable = True, multi_color = True)
+        d = layer.to_dict()
+        assert d['@@type'] == 'MultiColorPathLayer'
+        assert d['getWidth'] == 4
+        assert d['pickable'] is True
+
 
 class TestLineLayer:
     """Tests for LineLayer."""

@@ -47,6 +47,9 @@ import {
     ScreenGridLayer,
 } from '@deck.gl/aggregation-layers';
 
+// Custom layers (local subclasses)
+import MultiColorPathLayer from '../layers/MultiColorPathLayer';
+
 /**
  * Registry mapping @@type strings to layer classes
  */
@@ -65,6 +68,9 @@ const LAYER_REGISTRY = {
     ScatterplotLayer,
     SolidPolygonLayer,
     TextLayer,
+
+    // Custom layers
+    MultiColorPathLayer,
 
     // Geo layers
     GeohashLayer,

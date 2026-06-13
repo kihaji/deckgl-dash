@@ -197,6 +197,22 @@ class PathLayer(BaseLayer):
         ...     get_width=5,
         ...     pickable=True
         ... )
+
+    Per-segment coloring:
+        Pass ``multi_color=True`` to render a different color per segment within a
+        single path (e.g. flagging an "impossible" segment of a track). The layer is
+        serialized as ``@@type: "MultiColorPathLayer"``, and ``get_color`` should be an
+        accessor returning a list of ``[r, g, b(, a)]`` colors, one per segment
+        (N path points => N-1 segments). A single color still applies to the whole path.
+
+        >>> PathLayer(
+        ...     id='track',
+        ...     data=[{'path': coords, 'segmentColors': [[0, 0, 255], [255, 0, 0], ...]}],
+        ...     get_path='@@=path',
+        ...     get_color='@@=segmentColors',
+        ...     multi_color=True,
+        ...     pickable=True
+        ... )
     """
     _layer_type = 'PathLayer'
     _color_props = ('get_color',)
@@ -209,6 +225,8 @@ class PathLayer(BaseLayer):
         # Style accessors
         get_color: Optional[AccessorValue] = None,
         get_width: Optional[AccessorValue] = None,
+        # Per-segment coloring: serialize as MultiColorPathLayer
+        multi_color: Optional[bool] = None,
         # Width settings
         width_units: Optional[str] = None,  # 'meters' | 'common' | 'pixels'
         width_scale: Optional[float] = None,
@@ -233,6 +251,7 @@ class PathLayer(BaseLayer):
         **kwargs
     ):
         super().__init__(id)
+        self._multi_color = bool(multi_color)
         self._set_prop('data', data)
         self._set_prop('get_path', get_path)
         # Style accessors
@@ -260,6 +279,12 @@ class PathLayer(BaseLayer):
         self._set_prop('visible', visible)
         for key, value in kwargs.items():
             self._set_prop(key, value)
+
+    def to_dict(self) -> Dict[str, Any]:
+        result = super().to_dict()
+        if self._multi_color:
+            result['@@type'] = 'MultiColorPathLayer'
+        return result
 
 
 class LineLayer(BaseLayer):
