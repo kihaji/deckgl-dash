@@ -40,6 +40,8 @@ if __name__ == '__main__':
 - **Python Helpers**: Ergonomic layer constructors (`GeoJsonLayer`, `TileLayer`, etc.)
 - **MapLibre GL JS Basemaps**: Vector tile basemaps with automatic view state synchronization
 - **Tile-based Maps**: TileLayer support for OSM, CARTO, and custom tile servers
+- **Track Visualization**: Per-segment path coloring and direction-of-travel arrows for pattern-of-life / track analysis (`multi_color`, `show_direction`)
+- **Fit to Bounds**: Viewport-aware `fit_bounds` prop + `compute_bounds` helper to tightly frame features
 - **Per-Layer Data Updates**: Update individual layer data without resending all layers via `layer_data` prop
 - **Remote Data Loading**: Load data directly from external servers in the browser with `load_options`, including client certificate (mTLS) support
 - **Data-driven Styling**: Built-in color scales powered by chroma.js
@@ -156,6 +158,61 @@ config = MapLibreConfig(
     interleaved=True,  # Allows deck.gl layers below MapLibre labels
 )
 ```
+
+## Path Tracks: Per-Segment Color & Direction
+
+For pattern-of-life / track analysis, `PathLayer` can color each **segment** independently
+and overlay **direction-of-travel arrows** — all on a single, pickable layer.
+
+```python
+from deckgl_dash.layers import PathLayer
+
+# Each record carries its path plus one color per segment (N points -> N-1 segments).
+track = [{
+    'path': [[-122.42, 37.77], [-122.41, 37.77], [-122.36, 37.80], [-122.35, 37.80]],
+    'segmentColors': [[30, 110, 230], [230, 30, 30], [30, 110, 230]],  # middle leg flagged red
+}]
+
+PathLayer(
+    id='track',
+    data=track,
+    get_path='@@=path',
+    get_color='@@=segmentColors',
+    multi_color=True,        # color each segment from the list above
+    show_direction=True,     # evenly-spaced arrows pointing in the travel direction
+    arrow_spacing=80,        # pixels between arrows (stays constant across zoom)
+    get_width=6,
+    width_min_pixels=4,
+    pickable=True,
+)
+```
+
+- `multi_color=True` → serializes to `MultiColorPathLayer`; `get_color` returns one color per segment.
+- `show_direction=True` → serializes to `DirectedPathLayer`, a composite that draws the line **and** arrows as one object. Arrows are spaced in screen pixels and inherit the segment color (override with `arrow_color`).
+
+See `examples/multicolor_path_demo.py` and `examples/directed_path_demo.py`.
+
+## Fit to Bounds
+
+Frame the camera to a bounding box with the viewport-aware `fit_bounds` prop. It uses the
+map's real container size (MapLibre's native `fitBounds`, or `WebMercatorViewport` in
+deck-only mode), so features are framed tightly instead of approximately. Build the box from
+your features with `compute_bounds` (accepts points, paths, polygons, or GeoJSON):
+
+```python
+from deckgl_dash import DeckGL, compute_bounds
+from deckgl_dash.layers import ScatterplotLayer
+
+DeckGL(
+    id='map',
+    layers=[ScatterplotLayer(id='points', data=POINTS, get_position='@@=coordinates')],
+    initial_view_state={'longitude': -100, 'latitude': 40, 'zoom': 3},
+    fit_bounds={'bounds': compute_bounds(POINTS), 'padding': 40, 'maxZoom': 16},
+)
+```
+
+`fit_bounds` is `{'bounds': [[west, south], [east, north]], 'padding': 20, 'maxZoom': 20}`.
+See the [API docs](docs/api/deckgl-component.md#fit-to-bounds) and `examples/zoom_to_fit_demo.py`.
 
 ## Color Scales (chroma.js)
 

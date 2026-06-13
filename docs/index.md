@@ -15,6 +15,8 @@
 - **Python Helpers** — Ergonomic layer constructors (`GeoJsonLayer`, `TileLayer`, etc.)
 - **MapLibre GL JS Basemaps** — Vector tile basemaps with automatic view state sync
 - **Tile-based Maps** — TileLayer support for OSM, CARTO, and custom tile servers
+- **Track Visualization** — Per-segment path color and direction-of-travel arrows (`multi_color`, `show_direction`)
+- **Fit to Bounds** — Viewport-aware `fit_bounds` prop + `compute_bounds` helper
 - **Data-driven Styling** — Built-in color scales powered by chroma.js
 
 ## Quick Install

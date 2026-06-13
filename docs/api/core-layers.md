@@ -130,7 +130,7 @@ PathLayer(
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `get_path` | `accessor` | — | Array of `[lng, lat]` coordinates |
-| `get_color` | `color` | `[0,0,0,255]` | Path color |
+| `get_color` | `color` | `[0,0,0,255]` | Path color (or per-segment colors — see [Per-segment color](#per-segment-color)) |
 | `get_width` | `accessor` | `1` | Path width |
 | `width_units` | `str` | `'meters'` | `'meters'`, `'common'`, or `'pixels'` |
 | `width_min_pixels` | `float` | `0` | Minimum width in pixels |
@@ -138,6 +138,73 @@ PathLayer(
 | `cap_rounded` | `bool` | `False` | Rounded line caps |
 | `joint_rounded` | `bool` | `False` | Rounded line joints |
 | `billboard` | `bool` | `False` | Always face camera |
+| `multi_color` | `bool` | `False` | Color each segment independently — see [Per-segment color](#per-segment-color) |
+| `show_direction` | `bool` | `False` | Overlay direction-of-travel arrows — see [Direction arrows](#direction-arrows) |
+| `arrow_spacing` | `float` | `100` | Pixels between arrows (when `show_direction`) |
+| `arrow_size` | `float` | `18` | Arrow size in pixels |
+| `arrow_color` | `color` | `None` | Arrow color override; defaults to the underlying segment color |
+
+### Per-segment color
+
+By default a path is one color. Set `multi_color=True` to color each **segment**
+independently — useful for track / pattern-of-life analysis where you want to flag,
+say, an "impossible" leg of a journey. `get_color` then accepts an accessor returning a
+list of `[r, g, b(, a)]` colors, one per segment (a path of *N* points has *N−1*
+segments). A single color still applies to the whole path. The track stays a single
+pickable object.
+
+```python
+# Each data record carries its path plus one color per segment.
+track = [{
+    'path': [[-122.42, 37.77], [-122.41, 37.77], [-122.36, 37.80], [-122.35, 37.80]],
+    'segmentColors': [[30, 110, 230], [230, 30, 30], [30, 110, 230]],  # middle leg red
+}]
+
+PathLayer(
+    id='track',
+    data=track,
+    get_path='@@=path',
+    get_color='@@=segmentColors',
+    multi_color=True,
+    get_width=6,
+    width_min_pixels=4,
+    pickable=True,
+)
+```
+
+Internally this serializes to a `MultiColorPathLayer` (a `PathLayer` subclass). If the
+color list length doesn't match the segment count, a warning is logged and rendering
+continues. See `examples/multicolor_path_demo.py`.
+
+### Direction arrows
+
+For ordered paths (e.g. a GPS track ordered by time), set `show_direction=True` to
+overlay evenly-spaced arrowheads pointing in the direction of travel. Arrows are spaced
+in **screen pixels** (`arrow_spacing`), so spacing and size stay constant as you zoom,
+and they inherit the segment color (per-segment when `multi_color`) unless `arrow_color`
+overrides. Combine with `multi_color` to show **both** speed (color) and direction
+(arrows) on one layer.
+
+```python
+PathLayer(
+    id='track',
+    data=track,
+    get_path='@@=path',
+    get_color='@@=segmentColors',
+    multi_color=True,        # per-segment color
+    show_direction=True,     # direction-of-travel arrows
+    arrow_spacing=80,        # pixels between arrows
+    arrow_size=22,
+    get_width=6,
+    width_min_pixels=4,
+    pickable=True,
+)
+```
+
+`show_direction=True` serializes to a `DirectedPathLayer` — a composite that renders the
+line plus an arrow layer as a **single pickable object** (`opacity`, color, and width set
+on the layer apply to both). The arrows are non-pickable, so clicking the track reports
+the underlying track record. See `examples/directed_path_demo.py`.
 
 ---
 

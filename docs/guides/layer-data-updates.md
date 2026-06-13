@@ -81,6 +81,59 @@ Each callback only sends its own layer's data. Dash merges the patches on the cl
 | Independent per-layer data updates | `layer_data` + `Patch()` |
 | Changing the rendering order | `layer_order` (see [Layer Ordering](layer-ordering.md)) |
 
+## Click-to-Highlight (accessor recolor)
+
+A common interaction is highlighting a feature when its name is clicked in a list (or
+when the feature itself is clicked on the map). The robust pattern is **accessor-based
+recolor**: store a `selected` flag in each feature's `properties` and color via a ternary
+accessor, then push the updated data through `layer_data`. This works reliably across
+composite layers (`GeoJsonLayer`, `PolygonLayer`) where `highlightedObjectIndex` does not.
+
+```python
+from dash import callback, Output, Input, ctx, ALL
+from deckgl_dash import DeckGL
+from deckgl_dash.layers import GeoJsonLayer
+
+# Selected feature -> yellow, otherwise its own color. The @@= expression binder
+# exposes `properties`, so selectable fields must live under properties.*
+HIGHLIGHT = "@@=properties.selected ? [255, 255, 0, 200] : properties.color"
+
+def build_fc(selected_name=None):
+    return {'type': 'FeatureCollection', 'features': [
+        {'type': 'Feature',
+         'properties': {'name': r['name'], 'color': r['color'], 'selected': r['name'] == selected_name},
+         'geometry': {'type': 'Polygon', 'coordinates': [r['polygon']]}}
+        for r in REGIONS
+    ]}
+
+DeckGL(
+    id='map',
+    layers=[GeoJsonLayer(id='regions', data=build_fc(), get_fill_color=HIGHLIGHT, pickable=True)],
+    enable_events=['click'],
+    ...
+)
+
+@callback(
+    Output('map', 'layerData'),
+    Input({'type': 'name-btn', 'index': ALL}, 'n_clicks'),
+    Input('map', 'clickInfo'),
+    prevent_initial_call=True,
+)
+def highlight(_btn_clicks, click_info):
+    trig = ctx.triggered_id
+    if isinstance(trig, dict):                       # a list button was clicked
+        name = REGIONS[trig['index']]['name']
+    elif click_info and click_info.get('picked'):    # a feature on the map was clicked
+        name = (click_info.get('properties') or {}).get('name')
+    else:
+        name = None                                  # clicked empty map -> clear
+    return {'regions': build_fc(name)}               # only this layer's data is re-sent
+```
+
+Because the same accessor form (`properties.selected ? ... : properties.color`) works for
+paths too (store the fields under a `properties` key on each path record), one callback can
+highlight polygons and paths together — see `examples/feature_list_highlight_demo.py`.
+
 ## Migration from `dcc.Store` + Full Rebuild
 
 If you previously used `dcc.Store` to hold layer data and rebuilt the entire `layers` array on every change:

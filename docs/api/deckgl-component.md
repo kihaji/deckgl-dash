@@ -16,6 +16,7 @@ from deckgl_dash import DeckGL
 | `layer_order` | `list[str]` | `None` | Layer rendering order as a list of layer IDs from bottom to top. See [Layer Ordering](#layer-ordering) |
 | `initial_view_state` | `dict` | `{longitude: -122.4, latitude: 37.8, zoom: 11, pitch: 0, bearing: 0}` | Initial camera position (uncontrolled mode) |
 | `view_state` | `dict` | — | Controlled view state — when set, fully controls the camera |
+| `fit_bounds` | `dict` | — | Fit the camera to a geographic bounding box. See [Fit to Bounds](#fit-to-bounds) |
 | `controller` | `bool \| dict` | `True` | Enable map interactions. `True` for all, `False` for none, or a dict for fine-grained control |
 | `enable_events` | `bool \| list[str]` | `False` | Enable events for callbacks. `False`, `True` (all), or list like `['click', 'hover', 'dataLoadError']` |
 | `tooltip` | `bool \| dict` | `False` | Tooltip on hover. `True` for default, or `{html: "template {property}", style: {}}` |
@@ -51,6 +52,52 @@ The `initial_view_state` dict accepts:
 | `zoom` | `float` | `11` | Zoom level (0 = world, ~20 = building) |
 | `pitch` | `float` | `0` | Tilt angle in degrees (0 = top-down, 60 = angled) |
 | `bearing` | `float` | `0` | Rotation in degrees (0 = north up) |
+
+## Fit to Bounds
+
+Set the `fit_bounds` prop to frame the camera to a geographic bounding box. Unlike a
+hand-computed zoom, this is **viewport-aware** — it uses the map container's real pixel
+size, so features are framed tightly. It works in both render modes (MapLibre's native
+`fitBounds`, or `WebMercatorViewport.fitBounds` in deck-only mode).
+
+`fit_bounds` is a dict:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `bounds` | `[[west, south], [east, north]]` | — | **Required.** The box to fit |
+| `padding` | `float` | `20` | Pixels of padding around the bounds |
+| `maxZoom` | `float` | `20` | Clamp the fitted zoom (used as the fallback for a single-point box) |
+
+Use the `compute_bounds` helper to derive `bounds` from your features — it accepts point
+lists, path/polygon dicts, or GeoJSON:
+
+```python
+from dash import callback, Output, Input
+from deckgl_dash import DeckGL, compute_bounds
+from deckgl_dash.layers import ScatterplotLayer
+
+DeckGL(
+    id='map',
+    layers=[ScatterplotLayer(id='points', data=POINTS, get_position='@@=coordinates')],
+    initial_view_state={'longitude': -100, 'latitude': 40, 'zoom': 3},  # starts zoomed out
+    fit_bounds={'bounds': compute_bounds(POINTS), 'padding': 40, 'maxZoom': 16},
+)
+
+# Or drive it from a callback:
+@callback(Output('map', 'fitBounds'), Input('fit-btn', 'n_clicks'), prevent_initial_call=True)
+def zoom_to_fit(n):
+    return {'bounds': compute_bounds(POINTS), 'padding': 40}
+```
+
+!!! tip "Re-firing on identical bounds"
+    Dash skips a prop update when the value is unchanged. If a button always fits the
+    same bounds, add a changing key (e.g. `'nonce': n_clicks`) so the update re-fires;
+    the component ignores unknown keys.
+
+`compute_bounds(data, *, get_coordinates=None)` returns `[[west, south], [east, north]]`
+and raises `ValueError` if no coordinates are found. Pass `get_coordinates` to extract
+coordinates from a non-standard key. See `examples/zoom_to_fit_demo.py` (deck-only) and
+`examples/hexagon_deferred_load_demo.py` (MapLibre).
 
 ## Enabling Events
 
