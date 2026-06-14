@@ -33,6 +33,11 @@ Keyword arguments:
     interactions - False: Disable all interactions - object:
     Fine-grained control (e.g., {dragPan: True, scrollZoom: False}).
 
+- currentTime (number; optional):
+    (Output) The current playback head time T during animation,
+    reported ~8 Hz. Use it to drive a slider handle, a time readout,
+    or other callbacks.
+
 - dataLoadError (dict; optional):
     (Output) Information about the last data load error. Updated when
     'dataLoadError' is included in enableEvents and a layer fails to
@@ -168,6 +173,47 @@ Keyword arguments:
 
     - mapOptions (dict; optional)
 
+- timeFilter (dict; optional):
+    Time-filter animation config. Drives an internal
+    requestAnimationFrame loop that sets each filterable layer's
+    `filterRange` on the GPU (via DataFilterExtension) to a sliding
+    window `[current - window, current]`. Filtering happens
+    client-side at 60fps with no per-frame server round trips; only
+    the throttled `currentTime` is reported back.  Target layers are
+    those carrying a DataFilterExtension (declare `get_filter_value`
+    in Python), or an explicit `layerIds` allowlist. All time values
+    must share one scale — keep them float32-safe (e.g. seconds since
+    `domain[0]`).  Shape: - domain: [tMin, tMax] - full time extent
+    (required for playback) - window: number - sliding-window width in
+    time units - current: number - head time T; authoritative while
+    paused (slider scrubbing) - playing: bool - run the animation loop
+    - speed: number - time units advanced per wall-clock second
+    (default: full sweep in ~20s) - loop: bool - wrap the head back to
+    `domain[0]+window` at the end (default True) - softEdge: number -
+    optional fade width mapped to `filterSoftRange` - layerIds:
+    string[] - explicit target layer IDs (default: auto-detect) -
+    nonce: number - bump to force a re-sync of an unchanged `current`.
+
+    `timeFilter` is a dict with keys:
+
+    - domain (list of numbers; optional)
+
+    - window (number; optional)
+
+    - current (number; optional)
+
+    - playing (boolean; optional)
+
+    - speed (number; optional)
+
+    - loop (boolean; optional)
+
+    - softEdge (number; optional)
+
+    - layerIds (list of strings; optional)
+
+    - nonce (number; optional)
+
 - tooltip (boolean | dict; default False):
     Tooltip configuration. Can be: - False: No tooltip (default) -
     True: Show all properties on hover - object: {html: \"template
@@ -245,6 +291,21 @@ Keyword arguments:
         }
     )
 
+    TimeFilter = TypedDict(
+        "TimeFilter",
+            {
+            "domain": NotRequired[typing.Sequence[NumberType]],
+            "window": NotRequired[NumberType],
+            "current": NotRequired[NumberType],
+            "playing": NotRequired[bool],
+            "speed": NotRequired[NumberType],
+            "loop": NotRequired[bool],
+            "softEdge": NotRequired[NumberType],
+            "layerIds": NotRequired[typing.Sequence[str]],
+            "nonce": NotRequired[NumberType]
+        }
+    )
+
 
     def __init__(
         self,
@@ -268,11 +329,13 @@ Keyword arguments:
         drawingConfig: typing.Optional["DrawingConfig"] = None,
         drawingFeatures: typing.Optional[dict] = None,
         drawingEvent: typing.Optional[dict] = None,
+        timeFilter: typing.Optional["TimeFilter"] = None,
+        currentTime: typing.Optional[NumberType] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self._prop_names = ['id', 'clickInfo', 'controller', 'currentTime', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'timeFilter', 'tooltip', 'viewState']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'clickInfo', 'controller', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'tooltip', 'viewState']
+        self.available_properties = ['id', 'clickInfo', 'controller', 'currentTime', 'dataLoadError', 'dataLoadInfo', 'drawingConfig', 'drawingEvent', 'drawingFeatures', 'enableEvents', 'fitBounds', 'hoverInfo', 'initialViewState', 'layerData', 'layerOrder', 'layers', 'mapStyleLoaded', 'maplibreConfig', 'style', 'timeFilter', 'tooltip', 'viewState']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

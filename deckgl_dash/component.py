@@ -67,6 +67,11 @@ class DeckGL(_DeckGLBase):
         drawing_config: Drawing/editing configuration (DrawingConfig or dict with mode/style).
         drawing_features: (Input/Output) GeoJSON FeatureCollection of drawn features.
         drawing_event: (Output) Last drawing event info.
+        time_filter: Time-slider animation config (dict). Drives a 60fps client-side
+            sliding-window filter over layers given `get_filter_value`. Build with
+            `deckgl_dash.build_time_filter`. See `deckgl_dash.timefilter`.
+        current_time: (Output) Throttled playback head time during animation (~8 Hz);
+            use it to drive a slider handle, a readout, or other callbacks.
     """
 
     def __init__(
@@ -91,6 +96,8 @@ class DeckGL(_DeckGLBase):
         drawing_config: Optional[Union[DrawingConfig, Dict[str, Any]]] = None,
         drawing_features: Optional[Dict[str, Any]] = None,
         drawing_event: Optional[dict] = None,
+        time_filter: Optional[Dict[str, Any]] = None,
+        current_time: Optional[float] = None,
         **kwargs
     ):
         # Convert layer objects to dicts
@@ -123,5 +130,7 @@ class DeckGL(_DeckGLBase):
             drawingConfig = drawing_config,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any]; auto-generated type is DrawingConfig
             drawingFeatures = drawing_features,
             drawingEvent = drawing_event,
+            timeFilter = time_filter,  # type: ignore[arg-type]  # wrapper accepts Dict[str, Any] for ergonomics
+            currentTime = current_time,
             **kwargs
         )

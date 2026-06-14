@@ -41,6 +41,7 @@ if __name__ == '__main__':
 - **MapLibre GL JS Basemaps**: Vector tile basemaps with automatic view state synchronization
 - **Tile-based Maps**: TileLayer support for OSM, CARTO, and custom tile servers
 - **Track Visualization**: Per-segment path coloring and direction-of-travel arrows for pattern-of-life / track analysis (`multi_color`, `show_direction`)
+- **Time Slider & Animation**: GPU-filtered sliding time window with 60fps client-side playback and zero per-frame server round trips (`time_filter` prop, `get_filter_value` accessor)
 - **Fit to Bounds**: Viewport-aware `fit_bounds` prop + `compute_bounds` helper to tightly frame features
 - **Per-Layer Data Updates**: Update individual layer data without resending all layers via `layer_data` prop
 - **Remote Data Loading**: Load data directly from external servers in the browser with `load_options`, including client certificate (mTLS) support
@@ -191,6 +192,72 @@ PathLayer(
 - `show_direction=True` → serializes to `DirectedPathLayer`, a composite that draws the line **and** arrows as one object. Arrows are spaced in screen pixels and inherit the segment color (override with `arrow_color`).
 
 See `examples/multicolor_path_demo.py` and `examples/directed_path_demo.py`.
+
+## Time Slider & Animation
+
+Filter visible data to a **sliding time window** and animate it across the full time range.
+Filtering runs entirely **on the GPU** (deck.gl's `DataFilterExtension`) and playback is
+driven by an internal `requestAnimationFrame` loop, so the map updates at **60fps with no
+per-frame round trips** to the Dash server — the data is shipped to the browser once. Only
+the throttled `current_time` is reported back, so a `dcc.Slider` handle and readouts can
+track playback and other callbacks can react.
+
+Give any filterable layer a `get_filter_value` accessor (a per-datum timestamp) and pass a
+`time_filter` config built with `build_time_filter`:
+
+```python
+from dash import Dash, dcc, html, callback, Output, Input, State, ctx, no_update
+from deckgl_dash import DeckGL, compute_time_domain, build_time_filter
+from deckgl_dash.layers import TileLayer, ScatterplotLayer
+
+# Each point carries a numeric time `t` (keep it float32-safe — see note below).
+DOMAIN = compute_time_domain(POINTS, 't')          # [t_min, t_max]
+WINDOW = (DOMAIN[1] - DOMAIN[0]) * 0.1             # show a 10%-wide trailing window
+
+app.layout = html.Div([
+    dcc.Slider(id='time', min=DOMAIN[0], max=DOMAIN[1], value=DOMAIN[0] + WINDOW, updatemode='drag'),
+    DeckGL(
+        id='map',
+        layers=[
+            TileLayer(id='basemap', data='https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            ScatterplotLayer(id='points', data=POINTS, get_position='@@=coordinates',
+                             get_filter_value='@@=t'),  # auto-attaches DataFilterExtension
+        ],
+        time_filter=build_time_filter(DOMAIN, WINDOW),  # playing=False by default
+    ),
+])
+
+# The engine reports current_time (~8 Hz) during playback; use it to move the slider handle.
+@callback(Output('time', 'value'), Input('map', 'currentTime'), prevent_initial_call=True)
+def track(t):
+    return t
+```
+
+Set `playing=True` (e.g. from a Play button writing the `time_filter` prop) to animate; the
+window slides as `current - window … current` advances. Direction-of-travel arrows
+(`show_direction=True`) filter together with their lines.
+
+**`time_filter` fields** (build with `build_time_filter(domain, window, ...)`):
+
+| Key | Description |
+|-----|-------------|
+| `domain` | `[t_min, t_max]` full time extent (use `compute_time_domain`) |
+| `window` | Sliding-window width; visible data is `[current - window, current]` |
+| `current` | Head time `T`; authoritative while paused (slider scrubbing) |
+| `playing` | Run the animation loop |
+| `speed` | Time units advanced per wall-clock second (default: full sweep in ~20s) |
+| `loop` | Wrap the head back to `domain[0] + window` at the end |
+| `soft_edge` | Optional fade width mapped to `filterSoftRange` |
+| `layer_ids` | Explicit target layer IDs (default: auto-detect filterable layers) |
+
+> **Float32 note:** `DataFilterExtension` uploads filter values as 32-bit floats, so raw
+> epoch seconds (~1.7e9) lose precision and the window jumps. Keep time values float32-safe
+> (e.g. seconds/days since the domain start), or attach the extension with `fp64=True`.
+
+`get_filter_value` is supported directly on `ScatterplotLayer`, `GeoJsonLayer`, and
+`PathLayer` (incl. `show_direction`/`multi_color`), and on any other layer via `**kwargs`.
+See `examples/time_slider_demo.py` and `examples/path_arrows_time_slider_demo.py`, and the
+[API docs](docs/api/deckgl-component.md#time-filtering-and-animation).
 
 ## Fit to Bounds
 

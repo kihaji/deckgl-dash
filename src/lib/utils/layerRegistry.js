@@ -47,9 +47,54 @@ import {
     ScreenGridLayer,
 } from '@deck.gl/aggregation-layers';
 
+// Extensions from @deck.gl/extensions
+import { DataFilterExtension } from '@deck.gl/extensions';
+
 // Custom layers (local subclasses)
 import MultiColorPathLayer from '../layers/MultiColorPathLayer';
 import DirectedPathLayer from '../layers/DirectedPathLayer';
+
+/**
+ * Registry mapping extension @@type strings to extension classes.
+ * Used to turn JSON-serializable `extensions` entries from Python into
+ * real deck.gl extension instances (see instantiateExtensions).
+ */
+const EXTENSION_REGISTRY = {
+    DataFilterExtension,
+};
+
+/**
+ * Convert a layer config's `extensions` array (strings or {'@@type', ...opts} dicts)
+ * into instantiated deck.gl extension objects. Unknown entries are dropped.
+ * @param {Array} extensions - Raw extensions array from a layer config
+ * @returns {Array} Array of extension instances
+ */
+function instantiateExtensions(extensions) {
+    if (!Array.isArray(extensions)) {
+        return [];
+    }
+    return extensions.map(ext => {
+        if (typeof ext === 'string') {
+            const ExtClass = EXTENSION_REGISTRY[ext];
+            if (!ExtClass) {
+                console.warn(`Unknown extension: ${ext}`);
+                return null;
+            }
+            // DataFilterExtension defaults to a single scalar filter dimension.
+            return ExtClass === DataFilterExtension ? new ExtClass({ filterSize: 1 }) : new ExtClass();
+        }
+        if (ext && typeof ext === 'object' && ext['@@type']) {
+            const { '@@type': extType, ...opts } = ext;
+            const ExtClass = EXTENSION_REGISTRY[extType];
+            if (!ExtClass) {
+                console.warn(`Unknown extension: ${extType}`);
+                return null;
+            }
+            return new ExtClass(opts);
+        }
+        return null;
+    }).filter(Boolean);
+}
 
 /**
  * Registry mapping @@type strings to layer classes
@@ -204,8 +249,9 @@ function createAccessorFunction(path) {
 export function parseLayerConfig(config) {
     const parsed = {};
     for (const [key, value] of Object.entries(config)) {
-        if (key === '@@type' || key === 'id' || key === 'data') {
-            // Don't parse these special keys
+        if (key === '@@type' || key === 'id' || key === 'data' || key === 'extensions') {
+            // Don't parse these special keys. `extensions` is copied verbatim here and
+            // instantiated separately in createLayer (see instantiateExtensions).
             parsed[key] = value;
         } else if (Array.isArray(value)) {
             // Check if array contains accessor strings
@@ -362,6 +408,13 @@ export function createLayer(config, options = {}) {
                 if (existingOnError) existingOnError(error);
             };
         }
+    }
+
+    // Instantiate extensions (e.g. DataFilterExtension for GPU time filtering).
+    // getFilterValue is parsed via the @@= accessor path above; filterRange /
+    // filterSoftRange / filterEnabled are GPU uniforms that pass straight through.
+    if (parsedProps.extensions) {
+        parsedProps.extensions = instantiateExtensions(parsedProps.extensions);
     }
 
     try {

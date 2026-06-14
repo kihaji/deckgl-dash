@@ -108,9 +108,16 @@ class BaseLayer(ABC):
         self._props[camel_key] = value
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert layer to deck.gl JSON configuration dict."""
-        result = {'@@type': self._layer_type, 'id': self._id}
+        """Convert layer to deck.gl JSON configuration dict.
+
+        When a `get_filter_value` accessor is present (for GPU time filtering via the
+        time slider) and no explicit `extensions` were supplied, the DataFilterExtension
+        is auto-attached so `filterRange` updates take effect on the GPU.
+        """
+        result: Dict[str, Any] = {'@@type': self._layer_type, 'id': self._id}
         result.update(self._props)
+        if 'getFilterValue' in result and 'extensions' not in result:
+            result['extensions'] = ['DataFilterExtension']
         return result
 
     def __repr__(self) -> str:

@@ -22,7 +22,7 @@ class GeoJsonLayer(BaseLayer):
     """
     _layer_type = 'GeoJsonLayer'
     _color_props = ('get_fill_color', 'get_line_color', 'get_point_color', 'get_elevation_color')
-    _accessor_props = ('get_fill_color', 'get_line_color', 'get_radius', 'get_line_width', 'get_elevation')
+    _accessor_props = ('get_fill_color', 'get_line_color', 'get_radius', 'get_line_width', 'get_elevation', 'get_filter_value')
 
     def __init__(
         self, id: str, data: Any, *,
@@ -39,6 +39,11 @@ class GeoJsonLayer(BaseLayer):
         get_line_width: Optional[AccessorValue] = None,
         get_point_radius: Optional[AccessorValue] = None,
         get_elevation: Optional[AccessorValue] = None,
+        # Time filtering (GPU DataFilterExtension; pairs with the time slider)
+        get_filter_value: Optional[AccessorValue] = None,
+        filter_range: Optional[Sequence[float]] = None,
+        filter_soft_range: Optional[Sequence[float]] = None,
+        filter_enabled: Optional[bool] = None,
         # Size scales
         line_width_units: Optional[str] = None,  # 'meters' | 'common' | 'pixels'
         line_width_scale: Optional[float] = None,
@@ -74,6 +79,11 @@ class GeoJsonLayer(BaseLayer):
         self._set_prop('get_line_width', get_line_width)
         self._set_prop('get_point_radius', get_point_radius)
         self._set_prop('get_elevation', get_elevation)
+        # Time filtering
+        self._set_prop('get_filter_value', get_filter_value)
+        self._set_prop('filter_range', filter_range)
+        self._set_prop('filter_soft_range', filter_soft_range)
+        self._set_prop('filter_enabled', filter_enabled)
         # Size scales
         self._set_prop('line_width_units', line_width_units)
         self._set_prop('line_width_scale', line_width_scale)
@@ -112,7 +122,7 @@ class ScatterplotLayer(BaseLayer):
     """
     _layer_type = 'ScatterplotLayer'
     _color_props = ('get_fill_color', 'get_line_color')
-    _accessor_props = ('get_position', 'get_radius', 'get_fill_color', 'get_line_color')
+    _accessor_props = ('get_position', 'get_radius', 'get_fill_color', 'get_line_color', 'get_filter_value')
 
     def __init__(
         self, id: str, data: Any, *,
@@ -126,6 +136,11 @@ class ScatterplotLayer(BaseLayer):
         get_fill_color: Optional[AccessorValue] = None,
         get_line_color: Optional[AccessorValue] = None,
         get_line_width: Optional[AccessorValue] = None,
+        # Time filtering (GPU DataFilterExtension; pairs with the time slider)
+        get_filter_value: Optional[AccessorValue] = None,
+        filter_range: Optional[Sequence[float]] = None,
+        filter_soft_range: Optional[Sequence[float]] = None,
+        filter_enabled: Optional[bool] = None,
         # Size scales
         radius_units: Optional[str] = None,  # 'meters' | 'common' | 'pixels'
         radius_scale: Optional[float] = None,
@@ -160,6 +175,11 @@ class ScatterplotLayer(BaseLayer):
         self._set_prop('get_fill_color', get_fill_color)
         self._set_prop('get_line_color', get_line_color)
         self._set_prop('get_line_width', get_line_width)
+        # Time filtering
+        self._set_prop('get_filter_value', get_filter_value)
+        self._set_prop('filter_range', filter_range)
+        self._set_prop('filter_soft_range', filter_soft_range)
+        self._set_prop('filter_enabled', filter_enabled)
         # Size scales
         self._set_prop('radius_units', radius_units)
         self._set_prop('radius_scale', radius_scale)
@@ -230,7 +250,7 @@ class PathLayer(BaseLayer):
     """
     _layer_type = 'PathLayer'
     _color_props = ('get_color', 'arrow_color')
-    _accessor_props = ('get_path', 'get_color', 'get_width')
+    _accessor_props = ('get_path', 'get_color', 'get_width', 'get_filter_value')
 
     def __init__(
         self, id: str, data: Any, *,
@@ -239,6 +259,11 @@ class PathLayer(BaseLayer):
         # Style accessors
         get_color: Optional[AccessorValue] = None,
         get_width: Optional[AccessorValue] = None,
+        # Time filtering (GPU DataFilterExtension; pairs with the time slider)
+        get_filter_value: Optional[AccessorValue] = None,
+        filter_range: Optional[Sequence[float]] = None,
+        filter_soft_range: Optional[Sequence[float]] = None,
+        filter_enabled: Optional[bool] = None,
         # Per-segment coloring: serialize as MultiColorPathLayer
         multi_color: Optional[bool] = None,
         # Direction arrows: serialize as DirectedPathLayer (composite)
@@ -277,6 +302,11 @@ class PathLayer(BaseLayer):
         # Style accessors
         self._set_prop('get_color', get_color)
         self._set_prop('get_width', get_width)
+        # Time filtering
+        self._set_prop('get_filter_value', get_filter_value)
+        self._set_prop('filter_range', filter_range)
+        self._set_prop('filter_soft_range', filter_soft_range)
+        self._set_prop('filter_enabled', filter_enabled)
         # Direction arrows
         self._set_prop('arrow_spacing', arrow_spacing)
         self._set_prop('arrow_size', arrow_size)

@@ -24,6 +24,7 @@ from deckgl_dash import DeckGL
 | `maplibre_config` | `dict` | — | MapLibre GL JS configuration (see [MapLibre API](maplibre.md)) |
 | `drawing_config` | `DrawingConfig \| dict` | `None` | Drawing/editing configuration (see [Drawing & Editing](drawing.md)) |
 | `drawing_features` | `dict` | `None` | (Input/Output) GeoJSON FeatureCollection of drawn features |
+| `time_filter` | `dict` | `None` | Sliding-window time filter + animation config. See [Time Filtering and Animation](#time-filtering-and-animation) |
 
 !!! warning "controller is ignored in MapLibre mode"
     When `maplibre_config` is provided, the `controller` prop has no effect. Use `map_options` in `MapLibreConfig` instead. See the [MapLibre Integration Guide](../guides/maplibre-integration.md#controller-gotcha).
@@ -40,6 +41,7 @@ These props are updated by the component and can be read in Dash callbacks:
 | `data_load_info` | `dict` | Information about the last successful remote data load. Contains `layerId`, `featureCount`, `timestamp` |
 | `data_load_error` | `dict` | Information about the last data load error. Contains `layerId`, `error`, `timestamp` |
 | `drawing_event` | `dict` | Information about the last drawing event. Contains `type`, `featureCount`, `timestamp`. See [Drawing & Editing](drawing.md) |
+| `current_time` | `float` | The current playback head time during a `time_filter` animation, reported ~8 Hz. See [Time Filtering and Animation](#time-filtering-and-animation) |
 
 ## View State
 
@@ -98,6 +100,101 @@ def zoom_to_fit(n):
 and raises `ValueError` if no coordinates are found. Pass `get_coordinates` to extract
 coordinates from a non-standard key. See `examples/zoom_to_fit_demo.py` (deck-only) and
 `examples/hexagon_deferred_load_demo.py` (MapLibre).
+
+## Time Filtering and Animation
+
+The `time_filter` prop restricts the visible data to a **sliding time window**
+`[current - window, current]` and can **animate** that window across the full time range.
+Filtering runs on the GPU via deck.gl's `DataFilterExtension`, and playback is driven by an
+internal `requestAnimationFrame` loop — so the map updates at **60fps with no per-frame
+round trips** to the Dash server. The full dataset is shipped to the browser once; during
+playback only the throttled `current_time` output is sent back (~8 Hz).
+
+### 1. Give layers a `get_filter_value` accessor
+
+Each filterable layer needs a per-datum numeric time value. Supplying `get_filter_value`
+auto-attaches the `DataFilterExtension`:
+
+```python
+ScatterplotLayer(id='points', data=POINTS, get_position='@@=coordinates',
+                 get_filter_value='@@=t')  # extensions=['DataFilterExtension'] is auto-added
+```
+
+`get_filter_value` is a first-class parameter on `ScatterplotLayer`, `GeoJsonLayer`, and
+`PathLayer` (including `show_direction`/`multi_color`), and works on any other layer via
+`**kwargs`. Layers without it (e.g. a basemap `TileLayer`) are never filtered.
+
+!!! warning "Keep time values float32-safe"
+    `DataFilterExtension` uploads filter values as **32-bit floats** (~16.7M integer
+    precision). Raw epoch seconds (~1.7e9) lose precision and the window jumps. Use a
+    smaller scale — e.g. **seconds/days since the domain start** — or attach the extension
+    explicitly with `fp64=True` (`extensions=[{'@@type': 'DataFilterExtension', 'fp64': True}]`).
+
+### 2. Build and pass `time_filter`
+
+Use `build_time_filter(domain, window, ...)` (and `compute_time_domain` to find the extent):
+
+```python
+from deckgl_dash import DeckGL, compute_time_domain, build_time_filter
+
+DOMAIN = compute_time_domain(POINTS, 't')        # [t_min, t_max]
+WINDOW = (DOMAIN[1] - DOMAIN[0]) * 0.1
+
+DeckGL(id='map', layers=[...], time_filter=build_time_filter(DOMAIN, WINDOW))
+```
+
+The `time_filter` dict accepts:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `domain` | `[t_min, t_max]` | — | **Required for playback.** Full time extent |
+| `window` | `float` | — | Sliding-window width; visible data is `[current - window, current]` |
+| `current` | `float` | `domain[0] + window` | Head time `T`; authoritative while paused (scrubbing) |
+| `playing` | `bool` | `False` | Run the animation loop |
+| `speed` | `float` | full sweep in ~20s | Time units advanced per wall-clock second |
+| `loop` | `bool` | `True` | Wrap the head back to `domain[0] + window` at the end |
+| `soft_edge` | `float` | `None` | Fade width mapped to `filterSoftRange` for fade in/out |
+| `layer_ids` | `list[str]` | auto-detect | Explicit target layer IDs (default: any layer with the extension) |
+| `nonce` | `int` | `None` | Bump to force a re-sync of an unchanged `current` |
+
+`compute_time_domain(data, accessor)` returns `[t_min, t_max]`; `accessor` may be a dict
+key, a dotted path (`'properties.t'`), or a callable. It accepts a list of records or a
+GeoJSON FeatureCollection and raises `ValueError` if no numeric values are found.
+
+### 3. Wire the controls
+
+A single callback typically owns `time_filter` (Play/Pause/speed buttons + scrubbing) plus
+the slider handle and a readout. During playback the engine pushes `current_time`; echo it
+to the slider's `value` to make the handle track playback, and **ignore slider input while
+`playing`** so the echo doesn't fight the animation:
+
+```python
+@callback(
+    Output('map', 'timeFilter'), Output('time-slider', 'value'), Output('readout', 'children'),
+    Input('btn-play', 'n_clicks'), Input('btn-pause', 'n_clicks'),
+    Input('time-slider', 'value'), Input('map', 'currentTime'),
+    State('map', 'timeFilter'), prevent_initial_call=True,
+)
+def control(_play, _pause, slider_value, current_time, tf):
+    tf = dict(tf)
+    trig = ctx.triggered_id
+    if trig == 'map':                       # playback tick: move handle + readout only
+        return no_update, current_time, f't = {current_time:.1f}'
+    if trig == 'btn-play':
+        tf['playing'] = True; return tf, no_update, no_update
+    if trig == 'btn-pause':
+        tf['playing'] = False; return tf, no_update, no_update
+    if trig == 'time-slider':
+        if tf.get('playing'):               # programmatic echo during playback — ignore
+            return no_update, no_update, no_update
+        tf['current'] = slider_value; tf['nonce'] = (tf.get('nonce') or 0) + 1
+        return tf, no_update, f't = {slider_value:.1f}'
+    return no_update, no_update, no_update
+```
+
+Direction-of-travel arrows (`show_direction=True`) filter together with their lines. See
+`examples/time_slider_demo.py` (scatter points) and
+`examples/path_arrows_time_slider_demo.py` (directed paths).
 
 ## Enabling Events
 

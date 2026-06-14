@@ -34,17 +34,26 @@ export default class DirectedPathLayer extends CompositeLayer {
         return changeFlags.somethingChanged;
     }
 
-    updateState({ changeFlags }) {
+    updateState({ props, oldProps, changeFlags }) {
         const zoom = this.context.viewport ? this.context.viewport.zoom : null;
         const zoomChanged = this.state.lastZoom === undefined || Math.abs(zoom - this.state.lastZoom) > 1e-3;
-        // Marker screen-spacing only depends on data and zoom (pure pan preserves pixel spacing).
-        if (changeFlags.dataChanged || changeFlags.propsChanged || zoomChanged) {
+        // Markers depend on geometry, zoom, styling and the per-path filter value — but NOT
+        // on filterRange. The sliding time window is a GPU uniform, so animating it must not
+        // re-project markers every frame; only recompute when a marker-relevant prop changes.
+        const markerPropsChanged = changeFlags.dataChanged ||
+            props.getPath !== oldProps.getPath ||
+            props.getColor !== oldProps.getColor ||
+            props.multiColor !== oldProps.multiColor ||
+            props.arrowSpacing !== oldProps.arrowSpacing ||
+            props.arrowColor !== oldProps.arrowColor ||
+            props.getFilterValue !== oldProps.getFilterValue;
+        if (markerPropsChanged || zoomChanged) {
             this.setState({ markers: this._computeMarkers(), lastZoom: zoom });
         }
     }
 
     _computeMarkers() {
-        const { data, getPath, getColor, multiColor, arrowSpacing, arrowColor } = this.props;
+        const { data, getPath, getColor, multiColor, arrowSpacing, arrowColor, getFilterValue } = this.props;
         const { viewport } = this.context;
         if (!data || !viewport) {
             return [];
@@ -55,12 +64,16 @@ export default class DirectedPathLayer extends CompositeLayer {
 
         const resolvePath = typeof getPath === 'function' ? getPath : (o) => o.path;
         const resolveColor = typeof getColor === 'function' ? getColor : () => getColor;
+        // Stamp each arrow with its source path's time-filter value so the arrows fade with
+        // the line under the sliding window (the arrow sublayer's data is markers, not paths).
+        const resolveFilter = typeof getFilterValue === 'function' ? getFilterValue : null;
 
         for (const object of items) {
             const path = resolvePath(object);
             if (!Array.isArray(path) || path.length < 2) {
                 continue;
             }
+            const filterValue = resolveFilter ? resolveFilter(object) : undefined;
             const colorVal = resolveColor(object);
             const perSegment = multiColor && Array.isArray(colorVal) && Array.isArray(colorVal[0]);
             const singleColor = Array.isArray(colorVal) && Array.isArray(colorVal[0]) ? colorVal[0] : colorVal;
@@ -91,7 +104,7 @@ export default class DirectedPathLayer extends CompositeLayer {
                     const sx = x0 + dx * t;
                     const sy = y0 + dy * t;
                     const lngLat = viewport.unproject([sx, sy]);
-                    markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1) });
+                    markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1), filterValue });
                     placedAny = true;
                     nextAt += spacing;
                 }
@@ -105,7 +118,7 @@ export default class DirectedPathLayer extends CompositeLayer {
                 const [x1, y1] = screen[i];
                 const angle = -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
                 const lngLat = viewport.unproject([(x0 + x1) / 2, (y0 + y1) / 2]);
-                markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1) });
+                markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1), filterValue });
             }
         }
         return markers;
@@ -115,8 +128,13 @@ export default class DirectedPathLayer extends CompositeLayer {
         const {
             data, getPath, getColor, getWidth, multiColor,
             widthUnits, widthScale, widthMinPixels, widthMaxPixels, capRounded, jointRounded,
-            arrowSize,
+            arrowSize, getFilterValue,
         } = this.props;
+
+        // When a DataFilterExtension is attached (time slider), deck.gl auto-forwards this
+        // layer's getFilterValue + filterRange to both sublayers via getSubLayerProps. That is
+        // correct for the LINE (its data is the path objects), so we let it flow through.
+        const hasFilter = typeof getFilterValue === 'function';
 
         const LineLayer = multiColor ? MultiColorPathLayer : PathLayer;
         const pathSub = new LineLayer(this.getSubLayerProps({
@@ -133,7 +151,7 @@ export default class DirectedPathLayer extends CompositeLayer {
             jointRounded,
         }));
 
-        const arrowSub = new IconLayer(this.getSubLayerProps({
+        const arrowProps = this.getSubLayerProps({
             id: 'arrows',
             data: this.state.markers || [],
             iconAtlas: ARROW_ATLAS,
@@ -146,7 +164,15 @@ export default class DirectedPathLayer extends CompositeLayer {
             getAngle: (m) => m.angle,
             getColor: (m) => m.color,
             pickable: false,
-        }));
+        });
+        // The arrow sublayer's data is computed markers (not paths), so the auto-forwarded
+        // parent getFilterValue would read a nonexistent field. Override it (AFTER
+        // getSubLayerProps, which is where the extension injects the parent's accessor) to
+        // read the time stamped on each marker, so arrows fade with their line.
+        if (hasFilter) {
+            arrowProps.getFilterValue = (m) => m.filterValue;
+        }
+        const arrowSub = new IconLayer(arrowProps);
 
         return [pathSub, arrowSub];
     }

@@ -23,6 +23,7 @@ All layers share these properties:
 | `auto_highlight` | `bool` | `False` | Highlight features on hover |
 | `highlight_color` | `color` | `[0,0,128,128]` | Color used for auto-highlight |
 | `load_options` | `dict` | `None` | Options for loading remote data (see [Remote Data Loading](deckgl-component.md#remote-data-loading)) |
+| `get_filter_value` | `accessor` | `None` | Per-datum numeric value for GPU time filtering. Supplying it auto-attaches `DataFilterExtension` and pairs with the [`time_filter` slider](deckgl-component.md#time-filtering-and-animation). First-class on `ScatterplotLayer`/`GeoJsonLayer`/`PathLayer`; available on others via `**kwargs` |
 
 ### Color Values
 

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { WebMercatorViewport } from '@deck.gl/core';
 import { DeckGL as DeckGLComponent } from '@deck.gl/react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
+import { DataFilterExtension } from '@deck.gl/extensions';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createLayers } from '../utils/layerRegistry';
@@ -52,6 +53,64 @@ function applyLayerOrder(configs, order) {
 
 const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] };
 
+// ===========================================
+// Time-filter helpers (GPU DataFilterExtension)
+// ===========================================
+
+// Throttle interval for reporting the playback head time back to Dash (~8 Hz).
+const REPORT_INTERVAL_MS = 120;
+
+/**
+ * Compute the GPU filter bounds for a sliding window ending at head time T.
+ * Returns the hard `range` ([T-window, T]) and an optional `soft` fade range.
+ */
+function computeFilterRange(T, tf) {
+    const w = tf.window || 0;
+    const range = [T - w, T];
+    const soft = (typeof tf.softEdge === 'number' && tf.softEdge > 0)
+        ? [T - w - tf.softEdge, T + tf.softEdge]
+        : null;
+    return { range, soft };
+}
+
+/**
+ * Decide whether a layer should receive the time filter range.
+ * Honors an explicit `layerIds` allowlist, otherwise auto-detects any layer
+ * carrying a DataFilterExtension (so basemap/tile layers are never filtered).
+ */
+function isFilterTarget(layer, tf) {
+    if (!layer) return false;
+    if (Array.isArray(tf.layerIds)) {
+        return tf.layerIds.includes(layer.id);
+    }
+    const exts = layer.props && layer.props.extensions;
+    return Array.isArray(exts) && exts.some(e => e instanceof DataFilterExtension);
+}
+
+/**
+ * Return a new layers array where each filter-target layer is cloned with the
+ * window's `filterRange` (and `filterSoftRange`). `layer.clone` only overrides a
+ * GPU uniform — no re-tessellation — so this is cheap to call every frame.
+ */
+function applyRangeToLayers(layers, T, tf) {
+    if (!tf || !Array.isArray(layers)) return layers;
+    const { range, soft } = computeFilterRange(T, tf);
+    return layers.map(layer => {
+        if (!isFilterTarget(layer, tf)) return layer;
+        const overrides = soft ? { filterRange: range, filterSoftRange: soft } : { filterRange: range };
+        return layer.clone(overrides);
+    });
+}
+
+/** Resolve the head time used for the current render (paused -> current; playing -> live ref). */
+function resolveHeadTime(tf, headRef) {
+    if (tf && !tf.playing && typeof tf.current === 'number') return tf.current;
+    if (headRef != null) return headRef;
+    if (tf && typeof tf.current === 'number') return tf.current;
+    if (tf && Array.isArray(tf.domain)) return tf.domain[0] + (tf.window || 0);
+    return 0;
+}
+
 const DeckGL = ({
     id,
     layers = [],
@@ -68,6 +127,7 @@ const DeckGL = ({
     drawingConfig = null,
     drawingFeatures = null,
     drawingEvent = null,
+    timeFilter = null,
     setProps,
 }) => {
     // Track if layers reference changed
@@ -198,6 +258,104 @@ const DeckGL = ({
         );
         return editableLayer ? [...deckLayers, editableLayer] : deckLayers;
     }, [deckLayers, drawingConfig, internalFeatures, selectedFeatureIndexes, setProps]);
+
+    // ===========================================
+    // Time-filter animation engine
+    // ===========================================
+    // Always-fresh read of the timeFilter prop so the rAF loop sees play/pause/speed
+    // changes without being torn down and restarted.
+    const timeFilterRef = useRef(timeFilter);
+    timeFilterRef.current = timeFilter;
+
+    const rafRef = useRef(null);
+    const headTimeRef = useRef(null);     // mutable playback head T (avoids a render per frame)
+    const lastFrameTsRef = useRef(null);  // rAF timestamp of the previous frame
+    const lastReportedRef = useRef(0);    // throttle clock for setProps({currentTime})
+    // Base layers the engine clones from each frame; kept in sync with allLayers below.
+    const currentDeckLayersRef = useRef(allLayers);
+    currentDeckLayersRef.current = allLayers;
+    // Ref to the deck-only <DeckGL> instance for imperative per-frame layer updates.
+    const deckRef = useRef(null);
+
+    // Lazily seed the head time the first time a timeFilter appears.
+    if (timeFilter && headTimeRef.current === null) {
+        headTimeRef.current = resolveHeadTime(timeFilter, null);
+    }
+
+    // Push the window's filterRange to the active renderer without rebuilding layers.
+    const applyFilterRange = useCallback((T) => {
+        const tf = timeFilterRef.current;
+        if (!tf) return;
+        const next = applyRangeToLayers(currentDeckLayersRef.current, T, tf);
+        if (overlayRef.current) {
+            overlayRef.current.setProps({ layers: next });
+        } else if (deckRef.current && deckRef.current.deck) {
+            deckRef.current.deck.setProps({ layers: next });
+        }
+    }, []);
+
+    // The animation frame: advance the head, apply the GPU uniform, throttle the report.
+    const tick = useCallback((ts) => {
+        const tf = timeFilterRef.current;
+        if (!tf) { rafRef.current = null; return; }
+        if (lastFrameTsRef.current == null) lastFrameTsRef.current = ts;
+        const dt = (ts - lastFrameTsRef.current) / 1000; // seconds
+        lastFrameTsRef.current = ts;
+
+        if (tf.playing) {
+            const domain = Array.isArray(tf.domain) ? tf.domain : [0, 0];
+            const w = tf.window || 0;
+            const speed = typeof tf.speed === 'number' ? tf.speed : (domain[1] - domain[0]) / 20;
+            const loop = tf.loop !== false;
+            const start = domain[0] + w;
+            const end = domain[1];
+            let T = (headTimeRef.current == null ? start : headTimeRef.current) + speed * dt;
+            if (T > end) {
+                const span = end - start;
+                T = (loop && span > 0) ? start + ((T - start) % span) : (loop ? start : end);
+            }
+            headTimeRef.current = T;
+            applyFilterRange(T);
+            if (ts - lastReportedRef.current >= REPORT_INTERVAL_MS) {
+                lastReportedRef.current = ts;
+                if (setProps) setProps({ currentTime: T });
+            }
+        }
+        rafRef.current = requestAnimationFrame(tick);
+    }, [applyFilterRange, setProps]);
+
+    // Run the rAF loop only while playing; stop on pause/unmount (resets dt so resume
+    // does not jump).
+    useEffect(() => {
+        const playing = !!(timeFilter && timeFilter.playing);
+        if (playing && rafRef.current == null) {
+            lastFrameTsRef.current = null;
+            rafRef.current = requestAnimationFrame(tick);
+        } else if (!playing && rafRef.current != null) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+        return () => {
+            if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+        };
+    }, [timeFilter, tick]);
+
+    // Paused scrubbing: when stopped, the incoming `current` is authoritative.
+    useEffect(() => {
+        if (!timeFilter || timeFilter.playing) return;
+        if (typeof timeFilter.current === 'number') {
+            headTimeRef.current = timeFilter.current;
+            applyFilterRange(timeFilter.current);
+        }
+    }, [timeFilter?.current, timeFilter?.playing, timeFilter?.window, applyFilterRange]);
+
+    // Re-apply the current window when base layers change mid-playback (deferred load,
+    // visibility toggle, data update) so freshly built instances inherit the filter.
+    useEffect(() => {
+        if (timeFilterRef.current && headTimeRef.current != null) {
+            applyFilterRange(headTimeRef.current);
+        }
+    }, [allLayers, applyFilterRange]);
 
     // Determine drawing mode state for controller/cursor adjustments
     const drawingMode = drawingConfig?.mode || null;
@@ -356,7 +514,9 @@ const DeckGL = ({
         // Set interleaved=true only if you need deck.gl layers below MapLibre labels
         const overlay = new MapboxOverlay({
             interleaved: maplibreConfig.interleaved === true,
-            layers: allLayers,
+            layers: (timeFilterRef.current && headTimeRef.current != null)
+                ? applyRangeToLayers(allLayers, headTimeRef.current, timeFilterRef.current)
+                : allLayers,
             onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
             onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
             getTooltip: tooltip ? getTooltip : undefined,
@@ -461,8 +621,12 @@ const DeckGL = ({
         debugLog('useEffect: overlay setProps', { hasOverlay: !!overlayRef.current, layersCount: deckLayers?.length });
         if (overlayRef.current) {
             console.time('[DeckGL] overlay.setProps');
+            // Apply the active time-filter window so new base layers render filtered.
+            const layersToSet = (timeFilterRef.current && headTimeRef.current != null)
+                ? applyRangeToLayers(allLayers, headTimeRef.current, timeFilterRef.current)
+                : allLayers;
             overlayRef.current.setProps({
-                layers: allLayers,
+                layers: layersToSet,
                 onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
                 onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
                 getTooltip: tooltip ? getTooltip : undefined,
@@ -568,13 +732,20 @@ const DeckGL = ({
         return controller || true;
     }, [controller, isActiveDrawingMode, isDragDrawMode]);
 
+    // Apply the time-filter window to the rendered layers (cheap clone of target layers
+    // only) so React re-renders stay consistent with the rAF loop's imperative updates.
+    const renderedLayers = timeFilter
+        ? applyRangeToLayers(allLayers, resolveHeadTime(timeFilter, headTimeRef.current), timeFilter)
+        : allLayers;
+
     return (
         <div ref={containerRef} id={id} style={{ ...containerStyle, ...(drawingCursor ? { cursor: drawingCursor } : {}) }}>
             <DeckGLComponent
+                ref={deckRef}
                 viewState={currentViewState}
                 onViewStateChange={handleViewStateChange}
                 controller={effectiveController}
-                layers={allLayers}
+                layers={renderedLayers}
                 onClick={isEventEnabled('click', enableEvents) ? handleClick : undefined}
                 onHover={isEventEnabled('hover', enableEvents) ? handleHover : undefined}
                 getTooltip={tooltip ? getTooltip : undefined}
@@ -866,6 +1037,45 @@ DeckGL.propTypes = {
      * Contains: { type, featureCount, timestamp }
      */
     drawingEvent: PropTypes.object,
+
+    /**
+     * Time-filter animation config. Drives an internal requestAnimationFrame loop that
+     * sets each filterable layer's `filterRange` on the GPU (via DataFilterExtension) to a
+     * sliding window `[current - window, current]`. Filtering happens client-side at 60fps
+     * with no per-frame server round trips; only the throttled `currentTime` is reported back.
+     *
+     * Target layers are those carrying a DataFilterExtension (declare `get_filter_value` in
+     * Python), or an explicit `layerIds` allowlist. All time values must share one scale —
+     * keep them float32-safe (e.g. seconds since `domain[0]`).
+     *
+     * Shape:
+     * - domain: [tMin, tMax] - full time extent (required for playback)
+     * - window: number - sliding-window width in time units
+     * - current: number - head time T; authoritative while paused (slider scrubbing)
+     * - playing: bool - run the animation loop
+     * - speed: number - time units advanced per wall-clock second (default: full sweep in ~20s)
+     * - loop: bool - wrap the head back to `domain[0]+window` at the end (default true)
+     * - softEdge: number - optional fade width mapped to `filterSoftRange`
+     * - layerIds: string[] - explicit target layer IDs (default: auto-detect)
+     * - nonce: number - bump to force a re-sync of an unchanged `current`
+     */
+    timeFilter: PropTypes.shape({
+        domain: PropTypes.arrayOf(PropTypes.number),
+        window: PropTypes.number,
+        current: PropTypes.number,
+        playing: PropTypes.bool,
+        speed: PropTypes.number,
+        loop: PropTypes.bool,
+        softEdge: PropTypes.number,
+        layerIds: PropTypes.arrayOf(PropTypes.string),
+        nonce: PropTypes.number,
+    }),
+
+    /**
+     * (Output) The current playback head time T during animation, reported ~8 Hz.
+     * Use it to drive a slider handle, a time readout, or other callbacks.
+     */
+    currentTime: PropTypes.number,
 
     /**
      * Dash-assigned callback that should be called to report property changes

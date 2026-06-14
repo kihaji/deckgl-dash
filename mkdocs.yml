@@ -38,6 +38,7 @@ nav:
       - Drawing & Editing: guides/drawing-and-editing.md
       - Layer Data Updates: guides/layer-data-updates.md
       - Layer Ordering: guides/layer-ordering.md
+      - Time Slider & Animation: guides/time-slider-animation.md
       - Coordinate Conversion: guides/coordinate-conversion.md
   - API Reference:
       - DeckGL Component: api/deckgl-component.md
