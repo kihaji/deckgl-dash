@@ -81,6 +81,10 @@ class TestDrawingConfig:
             config = DrawingConfig(mode = mode)
             assert config.mode == mode
 
+    def test_delete_mode(self):
+        config = DrawingConfig(mode = 'delete')
+        assert config.to_dict() == {'mode': 'delete'}
+
     def test_invalid_mode_raises(self):
         with pytest.raises(ValueError, match = "Invalid drawing mode 'invalid'"):
             DrawingConfig(mode = 'invalid')

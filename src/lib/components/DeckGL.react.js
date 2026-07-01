@@ -360,7 +360,7 @@ const DeckGL = ({
     // Determine drawing mode state for controller/cursor adjustments
     const drawingMode = drawingConfig?.mode || null;
     const isDragDrawMode = drawingMode && DRAG_DRAW_MODES.has(drawingMode);
-    const isActiveDrawingMode = drawingMode && (ACTIVE_DRAWING_MODES.has(drawingMode) || drawingMode === 'modify' || drawingMode === 'translate');
+    const isActiveDrawingMode = drawingMode && (ACTIVE_DRAWING_MODES.has(drawingMode) || drawingMode === 'modify' || drawingMode === 'translate' || drawingMode === 'delete');
 
     // Cursor style for drawing modes
     const drawingCursor = drawingMode ? getCursorForMode(drawingMode) : null;

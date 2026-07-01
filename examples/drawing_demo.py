@@ -4,7 +4,7 @@ Demonstrates drawing lines, circles, rectangles, and polygons using the
 DrawingConfig and DrawingStyle helpers.
 """
 import json
-from dash import Dash, html, Input, Output, State, callback_context, no_update
+from dash import Dash, html, Input, Output, callback_context, no_update
 from deckgl_dash import DeckGL, DrawingConfig, DrawingStyle, EMPTY_FEATURE_COLLECTION
 from deckgl_dash.layers import TileLayer
 
@@ -33,7 +33,7 @@ app.layout = html.Div([
         html.Button("Square", id = "btn-square", style = BUTTON_STYLE),
         html.Button("Point", id = "btn-point", style = BUTTON_STYLE),
         html.Button("Modify", id = "btn-modify", style = BUTTON_STYLE),
-        html.Button("Delete Selected", id = "btn-delete", style = DELETE_STYLE),
+        html.Button("Delete", id = "btn-delete", style = DELETE_STYLE),
         html.Button("Clear All", id = "btn-clear", style = DELETE_STYLE),
     ], style = {'marginBottom': '10px'}),
     html.Div(id = 'mode-display', style = {'marginBottom': '10px', 'fontWeight': 'bold'}),
@@ -57,6 +57,7 @@ MODE_MAP = {
     'btn-square': 'draw_square',
     'btn-point': 'draw_point',
     'btn-modify': 'modify',
+    'btn-delete': 'delete',
 }
 
 
@@ -64,18 +65,13 @@ MODE_MAP = {
     Output('map', 'drawingConfig'),
     Output('map', 'drawingFeatures'),
     Output('mode-display', 'children'),
-    [Input(btn_id, 'n_clicks') for btn_id in [*MODE_MAP.keys(), 'btn-delete', 'btn-clear']],
-    State('map', 'drawingConfig'),
+    [Input(btn_id, 'n_clicks') for btn_id in [*MODE_MAP.keys(), 'btn-clear']],
     prevent_initial_call = True,
 )
 def set_draw_mode(*args):
     btn = str(callback_context.triggered_id)
-    current_config = args[-1] or {}
     if btn == 'btn-clear':
         return DrawingConfig(mode = 'view', style = DRAW_STYLE).to_dict(), EMPTY_FEATURE_COLLECTION, "Mode: view (cleared)"
-    if btn == 'btn-delete':
-        # Trigger delete of selected feature(s) — stays in current mode
-        return {**current_config, 'deleteSelected': True}, no_update, "Deleting selected..."
     mode = MODE_MAP.get(btn, 'view')
     return DrawingConfig(mode = mode, style = DRAW_STYLE).to_dict(), no_update, f"Mode: {mode}"
 

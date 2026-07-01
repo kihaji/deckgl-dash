@@ -14,6 +14,7 @@ import {
     DrawRectangleMode,
     DrawSquareMode,
     DrawCircleFromCenterMode,
+    DeleteMode,
 } from '@deck.gl-community/editable-layers';
 
 /**
@@ -29,6 +30,7 @@ const MODE_MAP = {
     draw_rectangle: new DrawRectangleMode(),
     draw_square: new DrawSquareMode(),
     draw_circle: new DrawCircleFromCenterMode(),
+    delete: new DeleteMode(),
 };
 
 /** Drawing modes that use drag interaction (conflict with map panning) */
@@ -44,7 +46,7 @@ export const ACTIVE_DRAWING_MODES = new Set([
 const SELECTION_MODES = new Set(['modify', 'translate']);
 
 /** Events that should sync completed state to Python */
-const SYNC_EVENTS = new Set(['addFeature', 'finishMovePosition', 'removePosition', 'addPosition']);
+const SYNC_EVENTS = new Set(['addFeature', 'finishMovePosition', 'removePosition', 'addPosition', 'deleteFeature']);
 
 /**
  * Get the mode instance for a mode string
@@ -75,7 +77,7 @@ const DEFAULT_STYLE = {
  */
 export function getCursorForMode(modeStr) {
     if (ACTIVE_DRAWING_MODES.has(modeStr)) return 'crosshair';
-    if (SELECTION_MODES.has(modeStr)) return 'pointer';
+    if (SELECTION_MODES.has(modeStr) || modeStr === 'delete') return 'pointer';
     return 'grab';
 }
 
