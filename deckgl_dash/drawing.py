@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from .layers.base import ColorValue, normalize_color
 
-DRAWING_MODES = {'draw_line', 'draw_polygon', 'draw_circle', 'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate'}
+DRAWING_MODES = {'draw_line', 'draw_polygon', 'draw_circle', 'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate', 'delete'}
 
 EMPTY_FEATURE_COLLECTION: Dict[str, Any] = {"type": "FeatureCollection", "features": []}
 
@@ -55,7 +55,8 @@ class DrawingConfig:
 
     Args:
         mode: Drawing mode string. One of: 'draw_line', 'draw_polygon', 'draw_circle',
-            'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate'.
+            'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate', 'delete'.
+            In 'delete' mode, each click on a feature deletes it.
         selected_feature_indexes: Indexes of features selected for editing (used with 'modify'/'translate' modes).
         style: Optional style overrides for the drawing layer.
         delete_selected: Set to True to delete the currently selected feature(s). Automatically resets to False.

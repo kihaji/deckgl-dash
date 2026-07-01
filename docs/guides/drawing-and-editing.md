@@ -41,7 +41,7 @@ def on_draw(fc):
 A common pattern is a row of buttons that each activate a different drawing mode:
 
 ```python
-from dash import Dash, html, Input, Output, State, callback_context, no_update
+from dash import Dash, html, Input, Output, callback_context, no_update
 from deckgl_dash import DeckGL, DrawingConfig, DrawingStyle, EMPTY_FEATURE_COLLECTION
 from deckgl_dash.layers import TileLayer
 
@@ -62,6 +62,7 @@ MODE_MAP = {
     'btn-rectangle': 'draw_rectangle',
     'btn-point': 'draw_point',
     'btn-modify': 'modify',
+    'btn-delete': 'delete',
 }
 
 app.layout = html.Div([
@@ -72,7 +73,7 @@ app.layout = html.Div([
         html.Button("Rectangle", id="btn-rectangle"),
         html.Button("Point", id="btn-point"),
         html.Button("Modify", id="btn-modify"),
-        html.Button("Delete Selected", id="btn-delete"),
+        html.Button("Delete", id="btn-delete"),
         html.Button("Clear All", id="btn-clear"),
     ]),
     DeckGL(
@@ -89,17 +90,13 @@ app.layout = html.Div([
 @app.callback(
     Output('map', 'drawingConfig'),
     Output('map', 'drawingFeatures'),
-    [Input(btn_id, 'n_clicks') for btn_id in [*MODE_MAP.keys(), 'btn-delete', 'btn-clear']],
-    State('map', 'drawingConfig'),
+    [Input(btn_id, 'n_clicks') for btn_id in [*MODE_MAP.keys(), 'btn-clear']],
     prevent_initial_call=True,
 )
 def toolbar_action(*args):
     btn = str(callback_context.triggered_id)
-    current_config = args[-1] or {}
     if btn == 'btn-clear':
         return DrawingConfig(mode='view', style=STYLE).to_dict(), EMPTY_FEATURE_COLLECTION
-    if btn == 'btn-delete':
-        return {**current_config, 'deleteSelected': True}, no_update
     mode = MODE_MAP.get(btn, 'view')
     return DrawingConfig(mode=mode, style=STYLE).to_dict(), no_update
 ```
@@ -124,9 +121,17 @@ Switch to `translate` mode to move entire features. Click a feature to select it
 DrawingConfig(mode='translate', style=STYLE)
 ```
 
-### Deleting a Feature
+### Delete Mode
 
-To delete a selected feature, set `deleteSelected: True` on the current config:
+Switch to `delete` mode to remove features one by one — each click on a feature deletes it immediately, no prior selection needed:
+
+```python
+DrawingConfig(mode='delete', style=STYLE)
+```
+
+### Deleting the Selected Feature Programmatically
+
+Alternatively, while in `modify` or `translate` mode you can delete the currently selected feature by setting `deleteSelected: True` on the current config:
 
 ```python
 @app.callback(
@@ -191,7 +196,7 @@ The `drawingEvent` output prop tells you what happened:
 |-----------|------|
 | `addFeature` | A new feature was completed |
 | `finishMovePosition` | A vertex or feature was moved (modify/translate) |
-| `deleteFeature` | A feature was deleted via `deleteSelected` |
+| `deleteFeature` | A feature was deleted (via `delete` mode or `deleteSelected`) |
 | `addPosition` | A vertex was added during drawing |
 | `removePosition` | A vertex was removed during editing |
 
