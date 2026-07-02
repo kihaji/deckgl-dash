@@ -135,5 +135,5 @@ def control(_play, _pause, slider_value, current_time, tf):
 ## Examples
 
 - `examples/time_slider_demo.py` — scatter points, Play/Pause/speed, scrubbable slider.
-- `examples/path_arrows_time_slider_demo.py` — directed paths whose lines and arrows fade
-  together, colored by start time.
+- `examples/directed_path_demo.py` — direction-of-travel arrows; combine with a time filter and
+  the lines and arrows fade together.

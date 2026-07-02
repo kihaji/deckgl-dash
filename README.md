@@ -256,7 +256,7 @@ window slides as `current - window … current` advances. Direction-of-travel ar
 
 `get_filter_value` is supported directly on `ScatterplotLayer`, `GeoJsonLayer`, and
 `PathLayer` (incl. `show_direction`/`multi_color`), and on any other layer via `**kwargs`.
-See `examples/time_slider_demo.py` and `examples/path_arrows_time_slider_demo.py`, and the
+See `examples/time_slider_demo.py` and the
 [API docs](docs/api/deckgl-component.md#time-filtering-and-animation).
 
 ## Fit to Bounds
