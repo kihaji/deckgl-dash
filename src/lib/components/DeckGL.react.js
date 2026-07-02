@@ -1,21 +1,27 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { WebMercatorViewport } from '@deck.gl/core';
 import { DeckGL as DeckGLComponent } from '@deck.gl/react';
-import { MapboxOverlay } from '@deck.gl/mapbox';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { createLayers } from '../utils/layerRegistry';
-import { isEventEnabled, normalizePickInfo } from '../utils/eventHandler';
+import { isEventEnabled } from '../utils/eventHandler';
 import { applyRangeToLayers, resolveHeadTime } from '../utils/timeFilter';
 import { applyLayerOrder } from '../utils/layerOrder';
-import { createEditableLayer, deleteFeatures, DRAG_DRAW_MODES, ACTIVE_DRAWING_MODES, getCursorForMode } from '../utils/drawingManager';
+import { debugLog, debugTime, debugTimeEnd } from '../utils/debug';
+import { useDrawing } from './hooks/useDrawing';
+import { useTimeFilterAnimation } from './hooks/useTimeFilterAnimation';
+import { useMaplibre } from './hooks/useMaplibre';
+import { useDeckEvents } from './hooks/useDeckEvents';
 
 /**
  * DeckGL component for Plotly Dash
  * A high-performance WebGL-powered visualization component wrapping deck.gl
  * Supports all deck.gl layer types via JSON configuration
  * Optional MapLibre GL JS integration for basemaps
+ *
+ * The component is a thin composition layer; the six concerns live in hooks:
+ * layer building (below), drawing (useDrawing), time-filter animation
+ * (useTimeFilterAnimation), MapLibre integration (useMaplibre), and Dash
+ * event/tooltip handlers (useDeckEvents).
  */
 const DEFAULT_VIEW_STATE = {
     longitude: -122.4,
@@ -24,15 +30,6 @@ const DEFAULT_VIEW_STATE = {
     pitch: 0,
     bearing: 0,
 };
-
-// Debug flag - set to true to enable performance logging
-const DEBUG_PERF = false;
-const debugLog = DEBUG_PERF ? (...args) => console.log('[DeckGL]', ...args) : () => {};
-
-const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] };
-
-// Throttle interval for reporting the playback head time back to Dash (~8 Hz).
-const REPORT_INTERVAL_MS = 120;
 
 const DeckGL = ({
     id,
@@ -52,26 +49,17 @@ const DeckGL = ({
     timeFilter = null,
     setProps,
 }) => {
-    // Track if layers reference changed
-    const prevLayersRef = useRef(layers);
-    const layersChanged = prevLayersRef.current !== layers;
-    prevLayersRef.current = layers;
+    debugLog('RENDER', { id, layersCount: layers?.length, hasMaplibreConfig: Boolean(maplibreConfig), controlledViewState });
 
-    debugLog('RENDER', { id, layersCount: layers?.length, hasMaplibreConfig: Boolean(maplibreConfig), controlledViewState, layersChanged });
-    // Refs for MapLibre mode
-    const mapContainerRef = useRef(null);
-    const mapRef = useRef(null);
+    // Shared renderer handles: the MapLibre overlay (set by useMaplibre) and the
+    // deck-only <DeckGL> instance — the animation engine writes to whichever is live.
+    const overlayRef = useRef(null);
+    const deckRef = useRef(null);
     // Ref to the deck-only container div (used to read pixel dimensions for fitBounds)
     const containerRef = useRef(null);
-    const overlayRef = useRef(null);
-    const mapViewStateRef = useRef(null);
-    // Keep a ref to maplibreConfig so the style.load handler always reads fresh values
-    const maplibreConfigRef = useRef(maplibreConfig);
-    maplibreConfigRef.current = maplibreConfig;
 
     // Internal view state for uncontrolled mode
     const [internalViewState, setInternalViewState] = useState(initialViewState);
-    const [, setMapStyleLoaded] = useState(false);
 
     // Use controlled view state if provided, otherwise use internal
     const currentViewState = controlledViewState || internalViewState;
@@ -98,7 +86,7 @@ const DeckGL = ({
         const baseConfigs = layers || [];
         const mergedData = accumulatedLayerDataRef.current;
         debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: Object.keys(mergedData).length > 0 });
-        console.time('[DeckGL] createLayers');
+        debugTime('[DeckGL] createLayers');
         let mergedConfigs = baseConfigs;
         if (Object.keys(mergedData).length > 0) {
             mergedConfigs = baseConfigs.map(config => {
@@ -113,270 +101,31 @@ const DeckGL = ({
             mergedConfigs = applyLayerOrder(mergedConfigs, layerOrder);
         }
         const result = createLayers(mergedConfigs, layerOptions);
-        console.timeEnd('[DeckGL] createLayers');
+        debugTimeEnd('[DeckGL] createLayers');
         return result;
     }, [layers, layerData, layerOrder, layerOptions]);
 
-    // ===========================================
-    // Drawing state
-    // ===========================================
-    const [internalFeatures, setInternalFeatures] = useState(
-        drawingFeatures || EMPTY_FEATURE_COLLECTION
-    );
-    const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState([]);
+    // Drawing: feature state, delete handling, cursor, editable layer on top
+    const { allLayers, drawingCursor, isDragDrawMode, isActiveDrawingMode } = useDrawing({
+        deckLayers, drawingConfig, drawingFeatures, setProps,
+    });
 
-    // Sync external drawingFeatures prop into internal state (e.g., Python clears or sets features)
-    const prevDrawingFeaturesRef = useRef(drawingFeatures);
-    useEffect(() => {
-        if (drawingFeatures !== prevDrawingFeaturesRef.current) {
-            prevDrawingFeaturesRef.current = drawingFeatures;
-            setInternalFeatures(drawingFeatures || EMPTY_FEATURE_COLLECTION);
-            setSelectedFeatureIndexes([]);
-        }
-    }, [drawingFeatures]);
+    // Time-filter animation engine (rAF loop driving GPU filterRange updates)
+    const { timeFilterRef, headTimeRef } = useTimeFilterAnimation({
+        timeFilter, allLayers, overlayRef, deckRef, setProps,
+    });
 
-    // Clear selection when switching modes
-    const prevModeRef = useRef(drawingConfig?.mode);
-    useEffect(() => {
-        if (drawingConfig?.mode !== prevModeRef.current) {
-            prevModeRef.current = drawingConfig?.mode;
-            setSelectedFeatureIndexes([]);
-        }
-    }, [drawingConfig?.mode]);
+    // Dash-facing event handlers and tooltip renderer
+    const { handleViewStateChange, handleClick, handleHover, getTooltip } = useDeckEvents({
+        controlledViewState, setInternalViewState, enableEvents, tooltip, setProps,
+    });
 
-    // Handle delete: when drawingConfig.deleteSelected is set and we have a selection
-    useEffect(() => {
-        if (drawingConfig?.deleteSelected && selectedFeatureIndexes.length > 0) {
-            const updated = deleteFeatures(internalFeatures, selectedFeatureIndexes);
-            setInternalFeatures(updated);
-            setSelectedFeatureIndexes([]);
-            if (setProps) {
-                setProps({
-                    drawingFeatures: updated,
-                    drawingEvent: {
-                        type: 'deleteFeature',
-                        featureCount: updated.features.length,
-                        timestamp: Date.now(),
-                    },
-                    // Reset deleteSelected flag so it can be triggered again
-                    drawingConfig: { ...drawingConfig, deleteSelected: false },
-                });
-            }
-        }
-    }, [drawingConfig?.deleteSelected]);
-
-    // Build final layers list: base layers + optional editable drawing layer on top
-    const allLayers = useMemo(() => {
-        if (!drawingConfig || !drawingConfig.mode || drawingConfig.mode === 'view') {
-            return deckLayers;
-        }
-        const editableLayer = createEditableLayer(
-            drawingConfig,
-            internalFeatures,
-            selectedFeatureIndexes,
-            setInternalFeatures,
-            setSelectedFeatureIndexes,
-            setProps
-        );
-        return editableLayer ? [...deckLayers, editableLayer] : deckLayers;
-    }, [deckLayers, drawingConfig, internalFeatures, selectedFeatureIndexes, setProps]);
-
-    // ===========================================
-    // Time-filter animation engine
-    // ===========================================
-    // Always-fresh read of the timeFilter prop so the rAF loop sees play/pause/speed
-    // changes without being torn down and restarted.
-    const timeFilterRef = useRef(timeFilter);
-    timeFilterRef.current = timeFilter;
-
-    const rafRef = useRef(null);
-    const headTimeRef = useRef(null);     // mutable playback head T (avoids a render per frame)
-    const lastFrameTsRef = useRef(null);  // rAF timestamp of the previous frame
-    const lastReportedRef = useRef(0);    // throttle clock for setProps({currentTime})
-    // Base layers the engine clones from each frame; kept in sync with allLayers below.
-    const currentDeckLayersRef = useRef(allLayers);
-    currentDeckLayersRef.current = allLayers;
-    // Ref to the deck-only <DeckGL> instance for imperative per-frame layer updates.
-    const deckRef = useRef(null);
-
-    // Lazily seed the head time the first time a timeFilter appears.
-    if (timeFilter && headTimeRef.current === null) {
-        headTimeRef.current = resolveHeadTime(timeFilter, null);
-    }
-
-    // Push the window's filterRange to the active renderer without rebuilding layers.
-    const applyFilterRange = useCallback((T) => {
-        const tf = timeFilterRef.current;
-        if (!tf) return;
-        const next = applyRangeToLayers(currentDeckLayersRef.current, T, tf);
-        if (overlayRef.current) {
-            overlayRef.current.setProps({ layers: next });
-        } else if (deckRef.current && deckRef.current.deck) {
-            deckRef.current.deck.setProps({ layers: next });
-        }
-    }, []);
-
-    // The animation frame: advance the head, apply the GPU uniform, throttle the report.
-    const tick = useCallback((ts) => {
-        const tf = timeFilterRef.current;
-        if (!tf) { rafRef.current = null; return; }
-        if (lastFrameTsRef.current == null) lastFrameTsRef.current = ts;
-        const dt = (ts - lastFrameTsRef.current) / 1000; // seconds
-        lastFrameTsRef.current = ts;
-
-        if (tf.playing) {
-            const domain = Array.isArray(tf.domain) ? tf.domain : [0, 0];
-            const w = tf.window || 0;
-            const speed = typeof tf.speed === 'number' ? tf.speed : (domain[1] - domain[0]) / 20;
-            const loop = tf.loop !== false;
-            const start = domain[0] + w;
-            const end = domain[1];
-            let T = (headTimeRef.current == null ? start : headTimeRef.current) + speed * dt;
-            if (T > end) {
-                const span = end - start;
-                T = (loop && span > 0) ? start + ((T - start) % span) : (loop ? start : end);
-            }
-            headTimeRef.current = T;
-            applyFilterRange(T);
-            if (ts - lastReportedRef.current >= REPORT_INTERVAL_MS) {
-                lastReportedRef.current = ts;
-                if (setProps) setProps({ currentTime: T });
-            }
-        }
-        rafRef.current = requestAnimationFrame(tick);
-    }, [applyFilterRange, setProps]);
-
-    // Run the rAF loop only while playing; stop on pause/unmount (resets dt so resume
-    // does not jump).
-    useEffect(() => {
-        const playing = Boolean(timeFilter && timeFilter.playing);
-        if (playing && rafRef.current == null) {
-            lastFrameTsRef.current = null;
-            rafRef.current = requestAnimationFrame(tick);
-        } else if (!playing && rafRef.current != null) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-        }
-        return () => {
-            if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-        };
-    }, [timeFilter, tick]);
-
-    // Paused scrubbing: when stopped, the incoming `current` is authoritative.
-    useEffect(() => {
-        if (!timeFilter || timeFilter.playing) return;
-        if (typeof timeFilter.current === 'number') {
-            headTimeRef.current = timeFilter.current;
-            applyFilterRange(timeFilter.current);
-        }
-    }, [timeFilter?.current, timeFilter?.playing, timeFilter?.window, applyFilterRange]);
-
-    // Re-apply the current window when base layers change mid-playback (deferred load,
-    // visibility toggle, data update) so freshly built instances inherit the filter.
-    useEffect(() => {
-        if (timeFilterRef.current && headTimeRef.current != null) {
-            applyFilterRange(headTimeRef.current);
-        }
-    }, [allLayers, applyFilterRange]);
-
-    // Determine drawing mode state for controller/cursor adjustments
-    const drawingMode = drawingConfig?.mode || null;
-    const isDragDrawMode = drawingMode && DRAG_DRAW_MODES.has(drawingMode);
-    const isActiveDrawingMode = drawingMode && (ACTIVE_DRAWING_MODES.has(drawingMode) || drawingMode === 'modify' || drawingMode === 'translate' || drawingMode === 'delete');
-
-    // Cursor style for drawing modes
-    const drawingCursor = drawingMode ? getCursorForMode(drawingMode) : null;
-
-    // View state change handler (for both internal state and Dash callbacks)
-    const handleViewStateChange = useCallback(({ viewState: newViewState }) => {
-        // Update internal state for uncontrolled mode
-        if (!controlledViewState) {
-            setInternalViewState(newViewState);
-        }
-        // Fire Dash callback if viewStateChange events are enabled
-        if (isEventEnabled('viewStateChange', enableEvents) && setProps) {
-            setProps({
-                viewState: {
-                    longitude: newViewState.longitude,
-                    latitude: newViewState.latitude,
-                    zoom: newViewState.zoom,
-                    pitch: newViewState.pitch || 0,
-                    bearing: newViewState.bearing || 0,
-                },
-            });
-        }
-    }, [controlledViewState, enableEvents, setProps]);
-
-    // Click handler
-    const handleClick = useCallback((info) => {
-        if (!isEventEnabled('click', enableEvents) || !setProps) {
-            return;
-        }
-        const normalized = normalizePickInfo(info);
-        setProps({
-            clickInfo: normalized,
-        });
-    }, [enableEvents, setProps]);
-
-    // Hover handler
-    const handleHover = useCallback((info) => {
-        if (!isEventEnabled('hover', enableEvents) || !setProps) {
-            return;
-        }
-        const normalized = normalizePickInfo(info);
-        setProps({
-            hoverInfo: normalized,
-        });
-    }, [enableEvents, setProps]);
-
-    // Tooltip rendering
-    const getTooltip = useCallback((info) => {
-        if (!tooltip || !info.picked || !info.object) {
-            return null;
-        }
-        // Simple tooltip - just show properties
-        if (tooltip === true) {
-            const properties = info.object.properties || info.object;
-            const text = Object.entries(properties)
-                .filter(([key, value]) => typeof value !== 'object' && !key.startsWith('_'))
-                .map(([key, value]) => `${key}: ${value}`)
-                .join('\n');
-            return text || null;
-        }
-        // Custom tooltip config
-        if (typeof tooltip === 'object') {
-            // Check for layer-specific tooltip config
-            const layerId = info.layer?.id;
-            let tooltipConfig = null;
-
-            if (tooltip.layers && layerId && tooltip.layers[layerId]) {
-                // Layer-specific tooltip
-                tooltipConfig = tooltip.layers[layerId];
-            } else if (tooltip.default) {
-                // Default tooltip config when using layers object
-                tooltipConfig = tooltip.default;
-            } else if (tooltip.html) {
-                // Simple {html: "..."} format (backwards compatible)
-                tooltipConfig = tooltip;
-            }
-
-            if (tooltipConfig && tooltipConfig.html) {
-                let html = tooltipConfig.html;
-                // Get properties from both object.properties (GeoJSON) and object directly (aggregation layers)
-                const props = info.object.properties || {};
-                const directProps = info.object || {};
-                const allProps = { ...directProps, ...props };
-
-                for (const [key, value] of Object.entries(allProps)) {
-                    if (typeof value !== 'object' && typeof value !== 'function') {
-                        html = html.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
-                    }
-                }
-                return { html, style: tooltipConfig.style || {} };
-            }
-        }
-        return null;
-    }, [tooltip]);
+    // MapLibre map + overlay lifecycle (no-op while maplibreConfig is null)
+    const { mapContainerRef } = useMaplibre({
+        maplibreConfig, currentViewState, controlledViewState, fitBounds, enableEvents, tooltip,
+        allLayers, handleClick, handleHover, getTooltip, setProps,
+        overlayRef, timeFilterRef, headTimeRef, isDragDrawMode, isActiveDrawingMode,
+    });
 
     // Container style with defaults
     const containerStyle = useMemo(() => {
@@ -388,207 +137,6 @@ const DeckGL = ({
             ...style,
         };
     }, [style]);
-
-    // ===========================================
-    // MapLibre GL JS Integration
-    // ===========================================
-
-    // Ref to track if view change originated from programmatic update (to avoid feedback loops)
-    const isUpdatingViewRef = useRef(false);
-
-    // Initialize MapLibre map on first mount, or switch style on existing map
-    useEffect(() => {
-        if (!maplibreConfig || !mapContainerRef.current) {
-            return;
-        }
-
-        const newStyle = maplibreConfig.style || { version: 8, sources: {}, layers: [] };
-
-        // Style change on existing map — use setStyle() to preserve map + overlay
-        if (mapRef.current) {
-            debugLog('setStyle: switching basemap style');
-            setMapStyleLoaded(false);
-            if (setProps) {
-                setProps({ mapStyleLoaded: false });
-            }
-            mapRef.current.setStyle(newStyle);
-            return; // no cleanup — map stays alive
-        }
-
-        // First mount — create map and overlay from scratch
-        const effectiveViewState = mapViewStateRef.current || currentViewState;
-        const mapOptions = {
-            container: mapContainerRef.current,
-            style: newStyle,
-            center: [effectiveViewState.longitude, effectiveViewState.latitude],
-            zoom: effectiveViewState.zoom,
-            pitch: effectiveViewState.pitch || 0,
-            bearing: effectiveViewState.bearing || 0,
-            attributionControl: maplibreConfig.attributionControl !== false,
-            ...(maplibreConfig.mapOptions || {}),
-        };
-
-        const map = new maplibregl.Map(mapOptions);
-        mapRef.current = map;
-
-        // Create MapboxOverlay for deck.gl layers
-        // Default interleaved to false for better performance (deck.gl renders on top of MapLibre)
-        // Set interleaved=true only if you need deck.gl layers below MapLibre labels
-        const overlay = new MapboxOverlay({
-            interleaved: maplibreConfig.interleaved === true,
-            layers: (timeFilterRef.current && headTimeRef.current != null)
-                ? applyRangeToLayers(allLayers, headTimeRef.current, timeFilterRef.current)
-                : allLayers,
-            onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
-            onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
-            getTooltip: tooltip ? getTooltip : undefined,
-        });
-        overlayRef.current = overlay;
-
-        // Add overlay as map control
-        map.addControl(overlay);
-
-        // Handle style load — reads maplibreConfigRef to get latest sources/layers
-        map.on('style.load', () => {
-            setMapStyleLoaded(true);
-            if (setProps) {
-                setProps({ mapStyleLoaded: true });
-            }
-
-            const cfg = maplibreConfigRef.current;
-
-            // Add custom sources
-            if (cfg?.sources) {
-                for (const [sourceId, sourceSpec] of Object.entries(cfg.sources)) {
-                    if (!map.getSource(sourceId)) {
-                        map.addSource(sourceId, sourceSpec);
-                    }
-                }
-            }
-
-            // Add custom map layers
-            if (cfg?.mapLayers) {
-                for (const layerSpec of cfg.mapLayers) {
-                    if (!map.getLayer(layerSpec.id)) {
-                        map.addLayer(layerSpec);
-                    }
-                }
-            }
-        });
-
-        // Fire Dash callback on moveend (not move) to avoid excessive updates
-        // MapLibre handles its own view state — we only report to Dash when movement ends
-        map.on('moveend', () => {
-            debugLog('map.moveend event', { isUpdating: isUpdatingViewRef.current, enableEvents });
-            // Always capture the current camera position so it survives style changes
-            const center = map.getCenter();
-            mapViewStateRef.current = {
-                longitude: center.lng,
-                latitude: center.lat,
-                zoom: map.getZoom(),
-                pitch: map.getPitch(),
-                bearing: map.getBearing(),
-            };
-
-            // Skip Dash callback if this was triggered by programmatic update
-            if (isUpdatingViewRef.current) {
-                isUpdatingViewRef.current = false;
-                return;
-            }
-
-            // Fire Dash callback if viewStateChange events are enabled
-            if (isEventEnabled('viewStateChange', enableEvents) && setProps) {
-                debugLog('map.moveend: calling setProps');
-                setProps({ viewState: mapViewStateRef.current });
-            }
-        });
-
-        // No cleanup — unmount is handled by a separate effect
-    }, [maplibreConfig?.style]); // Re-run only when style changes
-
-    // Cleanup on unmount only — never on style changes
-    useEffect(() => {
-        return () => {
-            if (overlayRef.current) {
-                overlayRef.current.finalize();
-                overlayRef.current = null;
-            }
-            if (mapRef.current) {
-                mapRef.current.remove();
-                mapRef.current = null;
-            }
-        };
-    }, []);
-
-    // Disable map interactions that conflict with drawing modes
-    useEffect(() => {
-        if (!mapRef.current) return;
-        // Disable double-click zoom in any active drawing/editing mode
-        if (isActiveDrawingMode) {
-            mapRef.current.doubleClickZoom.disable();
-        } else {
-            mapRef.current.doubleClickZoom.enable();
-        }
-        // Disable drag panning for drag-draw modes (circle, rectangle, square)
-        if (isDragDrawMode) {
-            mapRef.current.dragPan.disable();
-        } else {
-            mapRef.current.dragPan.enable();
-        }
-    }, [isDragDrawMode, isActiveDrawingMode]);
-
-    // Update overlay layers when deck.gl layers change
-    // Note: We intentionally exclude callback functions from deps - they use refs internally
-    useEffect(() => {
-        debugLog('useEffect: overlay setProps', { hasOverlay: Boolean(overlayRef.current), layersCount: deckLayers?.length });
-        if (overlayRef.current) {
-            console.time('[DeckGL] overlay.setProps');
-            // Apply the active time-filter window so new base layers render filtered.
-            const layersToSet = (timeFilterRef.current && headTimeRef.current != null)
-                ? applyRangeToLayers(allLayers, headTimeRef.current, timeFilterRef.current)
-                : allLayers;
-            overlayRef.current.setProps({
-                layers: layersToSet,
-                onClick: isEventEnabled('click', enableEvents) ? handleClick : undefined,
-                onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
-                getTooltip: tooltip ? getTooltip : undefined,
-            });
-            console.timeEnd('[DeckGL] overlay.setProps');
-        }
-    }, [allLayers]);
-
-    // Sync controlled viewState to MapLibre map (for programmatic control)
-    useEffect(() => {
-        debugLog('useEffect: controlledViewState sync', { hasMap: Boolean(mapRef.current), controlledViewState });
-        if (mapRef.current && controlledViewState) {
-            isUpdatingViewRef.current = true;
-            mapRef.current.jumpTo({
-                center: [controlledViewState.longitude, controlledViewState.latitude],
-                zoom: controlledViewState.zoom,
-                pitch: controlledViewState.pitch || 0,
-                bearing: controlledViewState.bearing || 0,
-            });
-        }
-    }, [controlledViewState]);
-
-    // Fit the camera to a bounding box. `fitBounds` shape:
-    //   { bounds: [[west, south], [east, north]], padding?: number, maxZoom?: number }
-    // MapLibre mode uses the map's native, viewport-aware fitBounds.
-    useEffect(() => {
-        if (!fitBounds || !Array.isArray(fitBounds.bounds) || !mapRef.current) {
-            return;
-        }
-        const [[west, south], [east, north]] = fitBounds.bounds;
-        const padding = fitBounds.padding ?? 20;
-        const maxZoom = fitBounds.maxZoom ?? 20;
-        // Guard the moveend handler against firing a Dash viewState callback for this programmatic move.
-        isUpdatingViewRef.current = true;
-        try {
-            mapRef.current.fitBounds([[west, south], [east, north]], { padding, maxZoom, duration: 0 });
-        } catch (e) {
-            console.warn('fitBounds (MapLibre) failed:', e);
-        }
-    }, [fitBounds]);
 
     // Deck-only mode: compute a fitted view state with WebMercatorViewport using the
     // container's real pixel size, then drive the uncontrolled camera.
@@ -624,6 +172,17 @@ const DeckGL = ({
         });
     }, [fitBounds]);
 
+    // Deck-only mode: compute effective controller with drawing overrides.
+    // Must stay above the MapLibre early return — hooks may not run conditionally.
+    const effectiveController = useMemo(() => {
+        if (controller === false) return false;
+        const base = typeof controller === 'object' ? controller : {};
+        if (isActiveDrawingMode) {
+            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
+        }
+        return controller || true;
+    }, [controller, isActiveDrawingMode, isDragDrawMode]);
+
     // ===========================================
     // Render
     // ===========================================
@@ -642,16 +201,6 @@ const DeckGL = ({
             </div>
         );
     }
-
-    // Standard deck.gl-only mode — compute effective controller with drawing overrides
-    const effectiveController = useMemo(() => {
-        if (controller === false) return false;
-        const base = typeof controller === 'object' ? controller : {};
-        if (isActiveDrawingMode) {
-            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
-        }
-        return controller || true;
-    }, [controller, isActiveDrawingMode, isDragDrawMode]);
 
     // Apply the time-filter window to the rendered layers (cheap clone of target layers
     // only) so React re-renders stay consistent with the rAF loop's imperative updates.

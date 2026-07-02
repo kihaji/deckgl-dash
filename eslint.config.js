@@ -2,6 +2,7 @@ const js = require('@eslint/js');
 const babelParser = require('@babel/eslint-parser');
 const reactPlugin = require('eslint-plugin-react');
 const importPlugin = require('eslint-plugin-import');
+const reactHooksPlugin = require('eslint-plugin-react-hooks');
 const prettier = require('eslint-config-prettier');
 const globals = require('globals');
 
@@ -26,6 +27,7 @@ module.exports = [
         },
         plugins: {
             react: reactPlugin,
+            'react-hooks': reactHooksPlugin,
             import: importPlugin,
         },
         settings: {
@@ -99,6 +101,10 @@ module.exports = [
             'react/no-unknown-property': ['error'],
             'react/prefer-es6-class': ['error', 'always'],
             'react/prop-types': 'error',
+            // Statically enforces what bug #9 violated (hooks after an early return)
+            'react-hooks/rules-of-hooks': 'error',
+            'react-hooks/exhaustive-deps': 'off',  // effects here deliberately use refs to avoid re-subscribing
+
             'yoda': ['error'],
             'spaced-comment': ['error', 'always', {block: {exceptions: ['*']}}],
             'no-unused-vars': ['error', {
