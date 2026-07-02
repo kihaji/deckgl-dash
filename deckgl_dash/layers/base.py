@@ -1,8 +1,9 @@
 """Base layer class for dash-deckgl Python layer helpers."""
 from __future__ import annotations
-import re
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+import difflib
+import inspect
+from abc import ABC
+from typing import Any, ClassVar, Dict, List, Optional, Sequence, Tuple, Union
 
 # Type aliases for color values
 ColorRGB = Tuple[int, int, int]
@@ -66,6 +67,63 @@ def to_camel_case(snake_str: str) -> str:
     return prefix + components[0] + ''.join(x.title() for x in components[1:])
 
 
+
+def _collect_kwargs(cls: type) -> frozenset:
+    """Union all keyword parameter names declared by __init__ across cls's MRO.
+
+    Variadic *args/**kwargs and self are skipped. Runs at class-creation time via
+    __init_subclass__, so it captures the full typed signature of each layer.
+    """
+    valid: set = set()
+    for klass in cls.__mro__:
+        if klass is object:
+            continue
+        init = klass.__dict__.get('__init__')
+        if init is None:
+            continue
+        try:
+            sig = inspect.signature(init)
+        except (ValueError, TypeError):
+            continue
+        for name, param in sig.parameters.items():
+            if name == 'self' or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+                continue
+            valid.add(name)
+    return frozenset(valid)
+
+
+# deck.gl base-Layer props valid on every layer; accepted via **kwargs without per-class declarations
+_UNIVERSAL_PROPS = frozenset({
+    'extensions', 'update_triggers', 'load_options', 'transitions',
+    # GPU time filtering works on any layer via DataFilterExtension
+    'get_filter_value', 'filter_range', 'filter_soft_range', 'filter_enabled',
+    # Zoom-gated visibility (#38) applies to any layer
+    'visible_min_zoom', 'visible_max_zoom',
+    # Binary transport opt-in (#39) applies to any layer
+    'use_binary',
+})
+
+
+def _raise_for_unknown_props(cls_name: str, props: Dict[str, Any], valid: frozenset) -> None:
+    """Raise TypeError listing unknown keys with difflib "did you mean" suggestions."""
+    unknown = [k for k in props if k not in valid and k not in _UNIVERSAL_PROPS]
+    if not unknown:
+        return
+    valid_sorted = sorted(valid)
+    lines = []
+    for key in unknown:
+        matches = difflib.get_close_matches(key, valid_sorted, n = 3, cutoff = 0.6)
+        if matches:
+            hint = ', '.join(repr(m) for m in matches)
+            lines.append(f"  '{key}' — did you mean: {hint}?")
+        else:
+            lines.append(f"  '{key}'")
+    raise TypeError(
+        f"Unknown property/properties for {cls_name}:\n" + '\n'.join(lines) +
+        '\n(Pass _unsafe_props=True to bypass this check, e.g. for deck.gl props this wrapper does not declare yet.)'
+    )
+
+
 class BaseLayer(ABC):
     """Abstract base class for all deck.gl layer helpers.
 
@@ -81,14 +139,25 @@ class BaseLayer(ABC):
     _color_props: Tuple[str, ...] = ()
     # Properties that can accept accessor strings (@@=...)
     _accessor_props: Tuple[str, ...] = ()
+    # Union of declared kwargs across the class and its ancestors; None on BaseLayer
+    # itself (no validation for direct/dict-style use). Set by __init_subclass__.
+    _VALID_PROPS: ClassVar[Optional[frozenset]] = None
 
-    def __init__(self, id: str, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        cls._VALID_PROPS = _collect_kwargs(cls)
+
+    def __init__(self, id: str, _unsafe_props: bool = False, **kwargs):
         """Initialize layer with id and properties.
 
         Args:
             id: Unique identifier for the layer
+            _unsafe_props: Skip unknown-prop validation (escape hatch for deck.gl
+                props this wrapper does not declare yet)
             **kwargs: Layer-specific properties in snake_case
         """
+        if not _unsafe_props and self._VALID_PROPS is not None:
+            _raise_for_unknown_props(type(self).__name__, kwargs, self._VALID_PROPS)
         self._id = id
         self._props: Dict[str, Any] = {}
         for key, value in kwargs.items():
