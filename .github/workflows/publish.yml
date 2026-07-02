@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify tag matches package version
+        run: python3 scripts/check_versions.py "${GITHUB_REF_NAME#v}"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
