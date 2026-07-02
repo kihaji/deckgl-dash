@@ -12,6 +12,16 @@
  * and size stay constant at any zoom. Each arrow inherits the color of the path
  * segment it sits on (per-segment when `multiColor`), unless `arrowColor` overrides.
  * Arrows are non-pickable, so the layer picks as the single underlying track.
+ *
+ * Scaling design (issue #81): naive marker placement projected every vertex of
+ * every path on every zoom tick. Instead, per-path geometry is cached ONCE per
+ * data change in Web Mercator common space (viewport-independent): cumulative
+ * arc lengths, per-segment angles, and a bounding box. With no pitch/bearing,
+ * screen length = common length x viewport.scale, so each zoom tick only walks
+ * precomputed lengths (float adds), culls off-screen paths by bbox, and
+ * unprojects the markers actually placed. Markers are emitted as typed-array
+ * binary attributes, skipping per-object accessor iteration in the IconLayer.
+ * Pitched/rotated views fall back to the exact per-vertex projection path.
  */
 import { CompositeLayer } from '@deck.gl/core';
 import { IconLayer, PathLayer } from '@deck.gl/layers';
@@ -47,47 +57,181 @@ export default class DirectedPathLayer extends CompositeLayer {
             props.arrowSpacing !== oldProps.arrowSpacing ||
             props.arrowColor !== oldProps.arrowColor ||
             props.getFilterValue !== oldProps.getFilterValue;
+        if (markerPropsChanged) {
+            this.setState({ pathCache: this._buildPathCache() });
+        }
         if (markerPropsChanged || zoomChanged) {
             this.setState({ markers: this._computeMarkers(), lastZoom: zoom });
         }
     }
 
-    _computeMarkers() {
-        const { data, getPath, getColor, multiColor, arrowSpacing, arrowColor, getFilterValue } = this.props;
+    /**
+     * Viewport-INDEPENDENT per-path geometry, built once per data/style change:
+     * common-space coords, cumulative arc lengths, per-segment screen angles
+     * (exact while pitch = bearing = 0), resolved segment colors, filter value,
+     * and a common-space bbox for culling. projectFlat is pure Web Mercator math,
+     * so the cache survives every pan/zoom.
+     */
+    _buildPathCache() {
+        const { data, getPath, getColor, multiColor, arrowColor, getFilterValue } = this.props;
         const { viewport } = this.context;
-        if (!data || !viewport) {
-            return [];
+        if (!data || !viewport || !viewport.projectFlat) {
+            return null;
         }
-        const spacing = Math.max(Number(arrowSpacing) || 1, 1);
         const items = Array.isArray(data) ? data : (data.length !== undefined ? Array.from(data) : []);
-        const markers = [];
-
         const resolvePath = typeof getPath === 'function' ? getPath : (o) => o.path;
         const resolveColor = typeof getColor === 'function' ? getColor : () => getColor;
-        // Stamp each arrow with its source path's time-filter value so the arrows fade with
-        // the line under the sliding window (the arrow sublayer's data is markers, not paths).
         const resolveFilter = typeof getFilterValue === 'function' ? getFilterValue : null;
 
+        const cache = [];
         for (const object of items) {
             const path = resolvePath(object);
             if (!Array.isArray(path) || path.length < 2) {
                 continue;
             }
-            const filterValue = resolveFilter ? resolveFilter(object) : undefined;
+            const n = path.length;
+            const common = new Float64Array(n * 2);
+            const cum = new Float64Array(n);          // cumulative common-space length at each vertex
+            const segAngle = new Float32Array(n - 1); // CCW degrees at bearing 0
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (let i = 0; i < n; i++) {
+                const [cx, cy] = viewport.projectFlat([path[i][0], path[i][1]]);
+                common[i * 2] = cx;
+                common[i * 2 + 1] = cy;
+                if (cx < minX) minX = cx;
+                if (cy < minY) minY = cy;
+                if (cx > maxX) maxX = cx;
+                if (cy > maxY) maxY = cy;
+                if (i > 0) {
+                    const dx = cx - common[(i - 1) * 2];
+                    const dy = cy - common[(i - 1) * 2 + 1];
+                    cum[i] = cum[i - 1] + Math.hypot(dx, dy);
+                    // Common-space y grows opposite to screen y, so the screen-space
+                    // "-atan2(dyScreen, dx)" is atan2(dyCommon, dx) here.
+                    segAngle[i - 1] = Math.atan2(dy, dx) * 180 / Math.PI;
+                }
+            }
+
             const colorVal = resolveColor(object);
             const perSegment = multiColor && Array.isArray(colorVal) && Array.isArray(colorVal[0]);
             const singleColor = Array.isArray(colorVal) && Array.isArray(colorVal[0]) ? colorVal[0] : colorVal;
-            const segColor = (segIndex) => {
-                if (arrowColor) return arrowColor;
-                if (perSegment) return colorVal[Math.min(segIndex, colorVal.length - 1)];
-                return singleColor;
-            };
+            cache.push({
+                path, common, cum, segAngle,
+                bbox: [minX, minY, maxX, maxY],
+                colors: arrowColor ? null : (perSegment ? colorVal : null),
+                singleColor: arrowColor || singleColor || [0, 0, 0, 255],
+                filterValue: resolveFilter ? resolveFilter(object) : 0,
+            });
+        }
+        return cache;
+    }
 
-            const screen = path.map((p) => viewport.project([p[0], p[1]]));
-            let walked = 0;
-            let nextAt = spacing / 2; // first arrow half a spacing in
+    _computeMarkers() {
+        const { viewport } = this.context;
+        const { pathCache } = this.state;
+        const spacing = Math.max(Number(this.props.arrowSpacing) || 1, 1);
+        if (!viewport || !pathCache || pathCache.length === 0) {
+            return null;
+        }
+        // The common-space fast path is exact only for a top-down, north-up camera;
+        // perspective (pitch) and rotation (bearing) fall back to full projection.
+        if (viewport.pitch || viewport.bearing || !viewport.unprojectFlat) {
+            return this._computeMarkersProjected(spacing);
+        }
+
+        // Pixels per common-space unit, probed empirically (constant across the
+        // screen at pitch 0, and independent of deck.gl's internal scale conventions).
+        const [clng, clat] = [viewport.longitude, viewport.latitude];
+        const pA = viewport.project([clng, clat]);
+        const pB = viewport.project([clng + 0.01, clat]);
+        const fA = viewport.projectFlat([clng, clat]);
+        const fB = viewport.projectFlat([clng + 0.01, clat]);
+        const scale = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) / (Math.hypot(fB[0] - fA[0], fB[1] - fA[1]) || 1);
+        if (!scale || !isFinite(scale)) {
+            return this._computeMarkersProjected(spacing);
+        }
+        const spacingCommon = spacing / scale;
+
+        // Viewport bounds in common space (+ half-spacing margin) for culling
+        let cull = null;
+        if (viewport.getBounds) {
+            const [west, south, east, north] = viewport.getBounds();
+            const [x0, y0] = viewport.projectFlat([west, south]);
+            const [x1, y1] = viewport.projectFlat([east, north]);
+            const margin = spacingCommon;
+            cull = [Math.min(x0, x1) - margin, Math.min(y0, y1) - margin,
+                    Math.max(x0, x1) + margin, Math.max(y0, y1) + margin];
+        }
+
+        // Growable plain arrays of numbers -> typed arrays once at the end
+        const positions = [];
+        const angles = [];
+        const colors = [];
+        const filterValues = [];
+
+        for (const p of pathCache) {
+            if (cull && (p.bbox[2] < cull[0] || p.bbox[0] > cull[2] || p.bbox[3] < cull[1] || p.bbox[1] > cull[3])) {
+                continue;
+            }
+            const total = p.cum[p.cum.length - 1];
             let placedAny = false;
+            let nextAt = spacingCommon / 2;
+            let seg = 0;
+            const emit = (at, segIndex) => {
+                // interpolate in common space, then one unproject per marker
+                const segStart = p.cum[segIndex];
+                const segLen = p.cum[segIndex + 1] - segStart;
+                const t = segLen > 0 ? (at - segStart) / segLen : 0;
+                const x = p.common[segIndex * 2] + (p.common[(segIndex + 1) * 2] - p.common[segIndex * 2]) * t;
+                const y = p.common[segIndex * 2 + 1] + (p.common[(segIndex + 1) * 2 + 1] - p.common[segIndex * 2 + 1]) * t;
+                const [lng, lat] = viewport.unprojectFlat([x, y]);
+                positions.push(lng, lat);
+                angles.push(p.segAngle[segIndex]);
+                const c = p.colors ? p.colors[Math.min(segIndex, p.colors.length - 1)] : p.singleColor;
+                colors.push(c[0], c[1], c[2], c.length > 3 && !isNaN(c[3]) ? c[3] : 255);
+                filterValues.push(p.filterValue);
+            };
+            while (nextAt <= total) {
+                while (seg < p.cum.length - 2 && p.cum[seg + 1] < nextAt) {
+                    seg++;
+                }
+                emit(nextAt, seg);
+                placedAny = true;
+                nextAt += spacingCommon;
+            }
+            // Ensure at least one arrow even when the whole path is shorter than half a spacing.
+            if (!placedAny) {
+                const mid = Math.max(0, Math.floor(p.cum.length / 2) - 1);  // middle segment, matching the projected fallback
+                emit((p.cum[mid] + p.cum[mid + 1]) / 2, mid);
+            }
+        }
 
+        return this._markersToBinary(positions, angles, colors, filterValues);
+    }
+
+    /** Exact fallback for pitched/rotated views: original per-vertex screen projection. */
+    _computeMarkersProjected(spacing) {
+        const { viewport } = this.context;
+        const { pathCache } = this.state;
+        const positions = [];
+        const angles = [];
+        const colors = [];
+        const filterValues = [];
+
+        for (const p of pathCache) {
+            const path = p.path;
+            const screen = path.map((pt) => viewport.project([pt[0], pt[1]]));
+            let walked = 0;
+            let nextAt = spacing / 2;
+            let placedAny = false;
+            const pushMarker = (sx, sy, angle, segIndex) => {
+                const lngLat = viewport.unproject([sx, sy]);
+                positions.push(lngLat[0], lngLat[1]);
+                angles.push(angle);
+                const c = p.colors ? p.colors[Math.min(segIndex, p.colors.length - 1)] : p.singleColor;
+                colors.push(c[0], c[1], c[2], c.length > 3 && !isNaN(c[3]) ? c[3] : 255);
+                filterValues.push(p.filterValue);
+            };
             for (let i = 1; i < screen.length; i++) {
                 const [x0, y0] = screen[i - 1];
                 const [x1, y1] = screen[i];
@@ -101,27 +245,35 @@ export default class DirectedPathLayer extends CompositeLayer {
                 const angle = -Math.atan2(dy, dx) * 180 / Math.PI;
                 while (walked + segLen >= nextAt) {
                     const t = (nextAt - walked) / segLen;
-                    const sx = x0 + dx * t;
-                    const sy = y0 + dy * t;
-                    const lngLat = viewport.unproject([sx, sy]);
-                    markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1), filterValue });
+                    pushMarker(x0 + dx * t, y0 + dy * t, angle, i - 1);
                     placedAny = true;
                     nextAt += spacing;
                 }
                 walked += segLen;
             }
-
-            // Ensure at least one arrow even when the whole path is shorter than half a spacing.
             if (!placedAny) {
                 const i = Math.max(1, Math.floor(path.length / 2));
                 const [x0, y0] = screen[i - 1];
                 const [x1, y1] = screen[i];
                 const angle = -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
-                const lngLat = viewport.unproject([(x0 + x1) / 2, (y0 + y1) / 2]);
-                markers.push({ position: [lngLat[0], lngLat[1]], angle, color: segColor(i - 1), filterValue });
+                pushMarker((x0 + x1) / 2, (y0 + y1) / 2, angle, i - 1);
             }
         }
-        return markers;
+        return this._markersToBinary(positions, angles, colors, filterValues);
+    }
+
+    /** Emit markers as deck.gl binary attributes — no per-object accessor iteration. */
+    _markersToBinary(positions, angles, colors, filterValues) {
+        const length = angles.length;
+        return {
+            length,
+            attributes: {
+                getPosition: { value: new Float64Array(positions), size: 2 },
+                getAngle: { value: new Float32Array(angles), size: 1 },
+                getColor: { value: new Uint8Array(colors), size: 4 },
+            },
+            filterValues: new Float32Array(filterValues),
+        };
     }
 
     renderLayers() {
@@ -151,26 +303,27 @@ export default class DirectedPathLayer extends CompositeLayer {
             jointRounded,
         }));
 
+        const markers = this.state.markers || { length: 0, attributes: {} };
         const arrowProps = this.getSubLayerProps({
             id: 'arrows',
-            data: this.state.markers || [],
+            data: { length: markers.length, attributes: markers.attributes },
             iconAtlas: ARROW_ATLAS,
             iconMapping: ARROW_MAPPING,
             getIcon: () => 'arrow',
             sizeUnits: 'pixels',
             getSize: arrowSize,
             billboard: true,
-            getPosition: (m) => m.position,
-            getAngle: (m) => m.angle,
-            getColor: (m) => m.color,
             pickable: false,
         });
         // The arrow sublayer's data is computed markers (not paths), so the auto-forwarded
         // parent getFilterValue would read a nonexistent field. Override it (AFTER
-        // getSubLayerProps, which is where the extension injects the parent's accessor) to
-        // read the time stamped on each marker, so arrows fade with their line.
-        if (hasFilter) {
-            arrowProps.getFilterValue = (m) => m.filterValue;
+        // getSubLayerProps, which is where the extension injects the parent's accessor) with
+        // the per-marker filter values, so arrows fade with their line.
+        if (hasFilter && markers.filterValues) {
+            arrowProps.data = {
+                length: markers.length,
+                attributes: { ...markers.attributes, getFilterValue: { value: markers.filterValues, size: 1 } },
+            };
         }
         const arrowSub = new IconLayer(arrowProps);
 
