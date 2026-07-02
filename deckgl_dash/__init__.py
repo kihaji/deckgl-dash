@@ -1,7 +1,7 @@
 """deckgl-dash: Direct deck.gl wrapper for Plotly Dash.
 
-High-performance WebGL-powered visualization with support for large vector datasets,
-Cloud Optimized GeoTIFFs (COGs), and tile-based base maps.
+High-performance WebGL-powered visualization with support for large vector datasets
+and tile-based base maps.
 
 Example:
     >>> from dash import Dash
