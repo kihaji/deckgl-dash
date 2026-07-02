@@ -269,12 +269,13 @@ export function isScaleAccessor(value) {
 export function colorRangeFromScale(scaleName, steps = 6, options = {}) {
     const { reverse = false } = options;
 
+    let effectiveScale = scaleName;
     if (!AVAILABLE_SCALES.includes(scaleName)) {
         console.warn(`Unknown scale '${scaleName}'. Using 'viridis'.`);
-        scaleName = 'viridis';
+        effectiveScale = 'viridis';
     }
 
-    const scale = chroma.scale(scaleName).colors(steps);
+    const scale = chroma.scale(effectiveScale).colors(steps);
     let colors = scale.map(c => {
         const rgb = chroma(c).rgb();
         return [Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2])];

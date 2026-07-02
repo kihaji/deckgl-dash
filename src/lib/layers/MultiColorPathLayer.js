@@ -37,18 +37,18 @@ export default class MultiColorPathLayer extends PathLayer {
             if (Array.isArray(color[0])) {
                 // Per-segment colors: expect one color per segment (N points => N-1 segments).
                 if (color.length !== path.length - 1) {
-                    // eslint-disable-next-line no-console
+                     
                     console.warn(
                         `MultiColorPathLayer: getColor returned ${color.length} colors for a path ` +
                         `with ${path.length} points (expected ${path.length - 1}). Rendering may be misaligned.`
                     );
                 }
-                color.forEach((segmentColor) => {
+                for (const segmentColor of color) {
                     value[i++] = segmentColor[0];
                     value[i++] = segmentColor[1];
                     value[i++] = segmentColor[2];
                     value[i++] = isNaN(segmentColor[3]) ? 255 : segmentColor[3];
-                });
+                }
             } else {
                 // Single color for the whole path: repeat it across every segment.
                 for (let ptIndex = 1; ptIndex < path.length; ptIndex++) {
