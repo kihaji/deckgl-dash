@@ -354,8 +354,84 @@ function createRasterTileRenderSubLayers() {
  * @param {boolean|Array} options.enableEvents - Event configuration
  * @returns {Object|null} deck.gl layer instance or null if type not found
  */
+
+// ===========================================
+// Binary data transport (issue #39)
+// ===========================================
+
+const DTYPE_CONSTRUCTORS = {
+    float32: Float32Array,
+    float64: Float64Array,
+    uint8: Uint8Array,
+    uint16: Uint16Array,
+    uint32: Uint32Array,
+    int32: Int32Array,
+};
+
+// Pre-rendered tooltip strings for binary layers (no per-item object exists client-side)
+const BINARY_TOOLTIPS = {};
+
+/** Pre-rendered tooltip strings for a binary layer, or null. */
+export function getBinaryTooltips(layerId) {
+    return BINARY_TOOLTIPS[layerId] || null;
+}
+
+function base64ToArrayBuffer(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+/**
+ * Rebuild a {'@@binary': ...} data block into deck.gl's native binary format:
+ * {length, attributes: {name: {value: TypedArray, size}}, startIndices?}.
+ * One base64 decode per layer; typed arrays are zero-copy views into the buffer.
+ */
+function rebuildBinaryData(block) {
+    const buffer = base64ToArrayBuffer(block.buffer);
+    const attributes = {};
+    for (const [name, meta] of Object.entries(block.attributes || {})) {
+        const Ctor = DTYPE_CONSTRUCTORS[meta.dtype];
+        if (!Ctor) {
+            console.warn(`Unsupported binary dtype '${meta.dtype}' for ${name}`);
+            continue;
+        }
+        attributes[name] = {
+            value: new Ctor(buffer, meta.offset, meta.byteLength / Ctor.BYTES_PER_ELEMENT),
+            size: meta.size,
+        };
+    }
+    const data = { length: block.length, attributes };
+    if (block.startIndices) {
+        const SICtor = DTYPE_CONSTRUCTORS[block.startIndices.dtype];
+        data.startIndices = new SICtor(
+            buffer,
+            block.startIndices.offset,
+            block.startIndices.byteLength / SICtor.BYTES_PER_ELEMENT
+        );
+    }
+    return data;
+}
+
+
 export function createLayer(config, options = {}) {
-    const { '@@type': typeName, ...layerProps } = config;
+    let { '@@type': typeName, ...layerProps } = config;
+
+    // Binary data transport: rebuild typed arrays before any other processing
+    if (layerProps.data && layerProps.data['@@binary']) {
+        const block = layerProps.data['@@binary'];
+        layerProps = { ...layerProps, data: rebuildBinaryData(block) };
+        if (block.tooltips && layerProps.id) {
+            BINARY_TOOLTIPS[layerProps.id] = block.tooltips;
+        }
+        // Composite PolygonLayer cannot take binary attributes; its solid core can
+        if (typeName === 'PolygonLayer') {
+            typeName = 'SolidPolygonLayer';
+        }
+    }
     if (!typeName) {
         console.warn('Layer config missing @@type:', config);
         return null;

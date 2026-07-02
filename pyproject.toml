@@ -30,10 +30,12 @@ dash = ">=3.0.0,<5"
 h3 = {version = "^4.0.0", optional = true}
 pyproj = {version = ">=3.0.0", optional = true}
 mgrs = {version = ">=1.4.0", optional = true}
+numpy = {version = "^2.2", optional = true}
 
 [tool.poetry.extras]
 test = ["h3"]
 coordinates = ["pyproj", "mgrs"]
+binary = ["numpy"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.0"
@@ -42,6 +44,7 @@ pyyaml = "^6.0.3"
 selenium = ">=4.1,<4.3"  # floor at 4.x (3.141 breaks with urllib3 2); ceiling from dash[testing]'s selenium<=4.2.0 pin
 pytest-cov = "^7.1.0"
 ruff = "^0.15.20"
+numpy = "^2.2"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs-material = "^9.0"

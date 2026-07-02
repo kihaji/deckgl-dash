@@ -114,6 +114,22 @@ class BaseLayer(ABC):  # noqa: B024
         """
         result: Dict[str, Any] = {'@@type': self._layer_type, 'id': self._id}
         result.update(self._props)
+        # Opt-in binary transport: data must be a dict of numpy arrays keyed by accessor
+        # name (optionally with 'startIndices' and 'tooltips'); packed into one base64
+        # buffer the JS side rebuilds as native deck.gl binary attributes.
+        if result.pop('useBinary', False):
+            data = result.get('data')
+            if isinstance(data, dict) and '@@binary' not in data:
+                from ..binary import binary_data
+                raw = dict(data)
+                tooltips = raw.pop('tooltips', None)
+                start_indices = raw.pop('startIndices', None)
+                if not raw:
+                    raise ValueError('use_binary=True requires data to contain at least one accessor array')
+                first = next(iter(raw.values()))
+                first_arr = first[0] if isinstance(first, tuple) else first
+                length = len(start_indices) if start_indices is not None else len(first_arr)
+                result['data'] = binary_data(length, raw, start_indices = start_indices, tooltips = tooltips)
         if 'getFilterValue' in result and 'extensions' not in result:
             result['extensions'] = ['DataFilterExtension']
         return result
