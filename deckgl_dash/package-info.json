@@ -14,12 +14,15 @@
     "build": "npm run build:js && npm run build:backends",
     "build:activated": "npm run build:js && npm run build:backends-activated",
     "build:all": "npm run build:js && npm run build:backends-activated",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "author": "Scott <scott@example.com>",
   "license": "MIT",
   "dependencies": {
     "@deck.gl-community/editable-layers": "~9.3.7",
+    "@deck.gl-community/layers": "~9.3.7",
     "@deck.gl/aggregation-layers": "~9.3.5",
     "@deck.gl/core": "~9.3.5",
     "@deck.gl/extensions": "~9.3.5",
@@ -30,11 +33,11 @@
     "@luma.gl/core": "~9.3.5",
     "@luma.gl/webgl": "~9.3.5",
     "chroma-js": "~3.2.0",
-    "maplibre-gl": "~5.24.0",
-    "@deck.gl-community/layers": "~9.3.7"
+    "maplibre-gl": "~5.24.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.1",
+    "@babel/eslint-parser": "^7.25.0",
     "@babel/preset-env": "^7.22.2",
     "@babel/preset-react": "^7.22.3",
     "@plotly/dash-component-plugins": "^1.2.3",
@@ -46,16 +49,17 @@
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-docgen": "^5.4.3",
     "react-dom": "^18.2.0",
     "style-loader": "^4.0.0",
     "styled-jsx": "^5.1.0",
+    "vitest": "^4.1.9",
     "webpack": "^5.84.1",
     "webpack-cli": "^7.0.0",
-    "webpack-dev-server": "^5.0.0",
-    "@babel/eslint-parser": "^7.25.0"
+    "webpack-dev-server": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0",
