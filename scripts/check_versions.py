@@ -31,15 +31,6 @@ def collect_versions() -> dict[str, str]:
     pkg_info = json.loads((PROJECT_ROOT / "deckgl_dash" / "package-info.json").read_text())
     versions["deckgl_dash/package-info.json"] = pkg_info.get("version", "<not found>")
 
-    # Generated R/Julia bindings are gitignored, so they only exist locally — skip when absent (e.g. fresh CI checkout)
-    if (PROJECT_ROOT / "DESCRIPTION").exists():
-        match = re.search(r'^Version: (.+)$', (PROJECT_ROOT / "DESCRIPTION").read_text(), re.MULTILINE)
-        versions["DESCRIPTION"] = match.group(1).strip() if match else "<not found>"
-
-    if (PROJECT_ROOT / "Project.toml").exists():
-        match = re.search(r'^version = "([^"]+)"', (PROJECT_ROOT / "Project.toml").read_text(), re.MULTILINE)
-        versions["Project.toml"] = match.group(1) if match else "<not found>"
-
     return versions
 
 
