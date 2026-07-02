@@ -16,7 +16,7 @@ Example:
     >>> color_range = color_range_from_scale('viridis', 6)
 """
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 # Available color scales from chroma.js
 AVAILABLE_SCALES: Tuple[str, ...] = (

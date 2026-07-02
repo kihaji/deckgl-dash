@@ -16,7 +16,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 from deckgl_dash import DeckGL
 
-pytestmark = pytest.mark.skipif(not os.environ.get("DECKGL_BROWSER_TESTS"), reason = "browser test; set DECKGL_BROWSER_TESTS=1 (needs chromedriver + selenium>=4)")
+pytestmark = pytest.mark.skipif(not os.environ.get("DECKGL_BROWSER_TESTS"),
+                                reason = "browser test; set DECKGL_BROWSER_TESTS=1 (needs chromedriver + selenium>=4)")
 
 VIEW = {"longitude": -122.43, "latitude": 37.78, "zoom": 12}
 GEOJSON = {"type": "FeatureCollection", "features": [

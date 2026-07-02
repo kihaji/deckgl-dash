@@ -20,8 +20,10 @@ DRAW_STYLE = DrawingStyle(
     tentative_line_color = '#FF8C00',
 )
 
-BUTTON_STYLE = {'padding': '8px 16px', 'margin': '4px', 'cursor': 'pointer', 'border': '1px solid #ccc', 'borderRadius': '4px', 'backgroundColor': '#fff'}
-DELETE_STYLE = {'padding': '8px 16px', 'margin': '4px', 'cursor': 'pointer', 'border': '1px solid #c00', 'borderRadius': '4px', 'backgroundColor': '#fff', 'color': '#c00'}
+BUTTON_STYLE = {'padding': '8px 16px', 'margin': '4px', 'cursor': 'pointer', 'border': '1px solid #ccc', 'borderRadius': '4px',
+                'backgroundColor': '#fff'}
+DELETE_STYLE = {'padding': '8px 16px', 'margin': '4px', 'cursor': 'pointer', 'border': '1px solid #c00', 'borderRadius': '4px',
+                'backgroundColor': '#fff', 'color': '#c00'}
 
 app.layout = html.Div([
     html.H2("Drawing Demo"),
@@ -46,7 +48,8 @@ app.layout = html.Div([
         style = {'height': '600px'},
     ),
     html.H4("Drawn Features (GeoJSON):"),
-    html.Pre(id = 'feature-output', style = {'maxHeight': '300px', 'overflow': 'auto', 'backgroundColor': '#f5f5f5', 'padding': '10px', 'borderRadius': '4px'}),
+    html.Pre(id = 'feature-output',
+             style = {'maxHeight': '300px', 'overflow': 'auto', 'backgroundColor': '#f5f5f5', 'padding': '10px', 'borderRadius': '4px'}),
 ])
 
 MODE_MAP = {

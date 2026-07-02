@@ -21,7 +21,7 @@ from deckgl_dash.layers import (
     HeatmapLayer, HexagonLayer, GridLayer,
     process_layers,
 )
-from deckgl_dash.layers.geo import TileLayer, MVTLayer, BitmapLayer
+from deckgl_dash.layers.geo import TileLayer, BitmapLayer
 from deckgl_dash.maplibre import MapLibreConfig, MapLibreStyle
 
 CENTER_LON, CENTER_LAT = -83.62, 32.84
@@ -32,7 +32,7 @@ ICON_ATLAS_URI = f"data:image/svg+xml;charset=utf-8,{quote(_ICON_SVG)}"
 ICON_MAPPING = {"marker": {"x": 0, "y": 0, "width": 64, "height": 64, "anchorY": 64}}
 
 # --- Bitmap image as inline SVG data URI ---
-_BITMAP_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#9C27B0" opacity="0.4"/><text x="100" y="105" text-anchor="middle" fill="white" font-size="20">Bitmap</text></svg>'
+_BITMAP_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#9C27B0" opacity="0.4"/><text x="100" y="105" text-anchor="middle" fill="white" font-size="20">Bitmap</text></svg>'  # noqa: E501
 BITMAP_IMAGE_URI = f"data:image/svg+xml;charset=utf-8,{quote(_BITMAP_SVG)}"
 BITMAP_BOUNDS = [CENTER_LON - 0.04, CENTER_LAT - 0.03, CENTER_LON + 0.04, CENTER_LAT + 0.03]
 
@@ -244,7 +244,8 @@ def _layer_row(reg: dict) -> html.Div:
     if not reg.get("preloaded"):
         children.append(_btn("Load", {"type": "btn-load", "layer": lid}, color))
     else:
-        children.append(html.Span("(preloaded)", style = {"fontSize": "11px", "color": "#999", "marginRight": "4px", "width": "60px", "display": "inline-block"}))
+        children.append(html.Span("(preloaded)", style = {"fontSize": "11px", "color": "#999", "marginRight": "4px",
+                                                                 "width": "60px", "display": "inline-block"}))
     children.extend([
         _btn("Toggle", {"type": "btn-toggle", "layer": lid}, "#757575"),
         html.Span(id = {"type": "status", "layer": lid},

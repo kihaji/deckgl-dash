@@ -37,10 +37,12 @@ clean:
 	rm -f deckgl_dash/deckgl_dash.dev.js.map
 	@echo "Clean complete"
 
-# Run code quality checks with Pyright
+# Run code quality checks: ruff (lint) + Pyright (types)
 quality:
+	@echo "Running ruff linter..."
+	poetry run ruff check .
 	@echo "Running Pyright type checker..."
-	poetry run npx pyright deckgl_dash/ examples/
+	poetry run npx pyright
 	@echo ""
 	@echo "Quality check complete."
 

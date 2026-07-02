@@ -1,7 +1,7 @@
 """
 Basic usage example for deckgl-dash with OpenStreetMap TileLayer
 """
-from dash import Dash, html, callback, Output, Input
+from dash import Dash, html
 from deckgl_dash import DeckGL
 
 app = Dash(__name__)
