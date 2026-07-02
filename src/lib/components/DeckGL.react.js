@@ -6,6 +6,7 @@ import { createLayers } from '../utils/layerRegistry';
 import { isEventEnabled } from '../utils/eventHandler';
 import { applyRangeToLayers, resolveHeadTime } from '../utils/timeFilter';
 import { applyLayerOrder } from '../utils/layerOrder';
+import { extractZoomGates, zoomGateKey, applyZoomVisibility } from '../utils/zoomVisibility';
 import { debugLog, debugTime, debugTimeEnd } from '../utils/debug';
 import { useDrawing } from './hooks/useDrawing';
 import { useTimeFilterAnimation } from './hooks/useTimeFilterAnimation';
@@ -76,9 +77,11 @@ const DeckGL = ({
     // Merge happens inside useMemo (not useEffect) so the current render sees the update immediately.
     const accumulatedLayerDataRef = useRef({});
 
-    // Create deck.gl layers from JSON configs, merging per-layer data overrides
+    // Create deck.gl layers from JSON configs, merging per-layer data overrides.
+    // visibleMinZoom/visibleMaxZoom gating keys are extracted here (zoomGates) and
+    // stripped before layer creation.
     const layerOptions = useMemo(() => ({ setProps, enableEvents }), [setProps, enableEvents]);
-    const deckLayers = useMemo(() => {
+    const { deckLayers, zoomGates } = useMemo(() => {
         // Merge incoming layerData into the accumulated ref before reading it
         if (layerData && Object.keys(layerData).length > 0) {
             accumulatedLayerDataRef.current = { ...accumulatedLayerDataRef.current, ...layerData };
@@ -100,9 +103,10 @@ const DeckGL = ({
         if (layerOrder && Array.isArray(layerOrder) && layerOrder.length > 0) {
             mergedConfigs = applyLayerOrder(mergedConfigs, layerOrder);
         }
-        const result = createLayers(mergedConfigs, layerOptions);
+        const { configs: gatedConfigs, gates } = extractZoomGates(mergedConfigs);
+        const result = createLayers(gatedConfigs, layerOptions);
         debugTimeEnd('[DeckGL] createLayers');
-        return result;
+        return { deckLayers: result, zoomGates: gates };
     }, [layers, layerData, layerOrder, layerOptions]);
 
     // Drawing: feature state, delete handling, cursor, editable layer on top
@@ -110,9 +114,21 @@ const DeckGL = ({
         deckLayers, drawingConfig, drawingFeatures, setProps,
     });
 
+    // Zoom-gated visibility: fold visibleMinZoom/visibleMaxZoom into `visible`.
+    // MapLibre owns its camera, so its zoom lives in a ref; a state key bumps a
+    // re-render only when some gate actually flips (the zoom event is per-frame).
+    const mapZoomRef = useRef(null);
+    const [mapZoomGateKey, setMapZoomGateKey] = useState('');
+    const gateZoom = maplibreConfig ? mapZoomRef.current : currentViewState.zoom;
+    const gateKey = maplibreConfig ? mapZoomGateKey : zoomGateKey(zoomGates, currentViewState.zoom);
+    const gatedLayers = useMemo(
+        () => (gateZoom == null ? allLayers : applyZoomVisibility(allLayers, zoomGates, gateZoom)),
+        [allLayers, zoomGates, gateKey]  // gateKey is the memo trigger; gateZoom is read fresh
+    );
+
     // Time-filter animation engine (rAF loop driving GPU filterRange updates)
     const { timeFilterRef, headTimeRef } = useTimeFilterAnimation({
-        timeFilter, allLayers, overlayRef, deckRef, setProps,
+        timeFilter, allLayers: gatedLayers, overlayRef, deckRef, setProps,
     });
 
     // Dash-facing event handlers and tooltip renderer
@@ -123,8 +139,9 @@ const DeckGL = ({
     // MapLibre map + overlay lifecycle (no-op while maplibreConfig is null)
     const { mapContainerRef } = useMaplibre({
         maplibreConfig, currentViewState, controlledViewState, fitBounds, enableEvents, tooltip,
-        allLayers, handleClick, handleHover, getTooltip, setProps,
+        allLayers: gatedLayers, handleClick, handleHover, getTooltip, setProps,
         overlayRef, timeFilterRef, headTimeRef, isDragDrawMode, isActiveDrawingMode,
+        zoomGates, mapZoomRef, setMapZoomGateKey,
     });
 
     // Container style with defaults
@@ -205,8 +222,8 @@ const DeckGL = ({
     // Apply the time-filter window to the rendered layers (cheap clone of target layers
     // only) so React re-renders stay consistent with the rAF loop's imperative updates.
     const renderedLayers = timeFilter
-        ? applyRangeToLayers(allLayers, resolveHeadTime(timeFilter, headTimeRef.current), timeFilter)
-        : allLayers;
+        ? applyRangeToLayers(gatedLayers, resolveHeadTime(timeFilter, headTimeRef.current), timeFilter)
+        : gatedLayers;
 
     return (
         <div ref={containerRef} id={id} style={{ ...containerStyle, ...(drawingCursor ? { cursor: drawingCursor } : {}) }}>
@@ -236,6 +253,10 @@ DeckGL.propTypes = {
      * Array of layer configurations. Each layer should have a '@@type' property
      * specifying the layer type (e.g., 'GeoJsonLayer', 'TileLayer').
      * Supports all deck.gl layer types.
+     *
+     * Per-layer `visibleMinZoom`/`visibleMaxZoom` keys gate the layer's visibility
+     * by the current map zoom (LOD-style dashboards) in both render modes; the
+     * user-supplied `visible` is preserved and re-applied when back in range.
      */
     layers: PropTypes.arrayOf(PropTypes.object),
 
