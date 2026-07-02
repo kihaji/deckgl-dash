@@ -197,6 +197,9 @@ class MVTLayer(BaseLayer):
 class BitmapLayer(BaseLayer):
     """Render a bitmap image at specified bounds.
 
+    Note: unlike most layers, there is no `data` positional — deck.gl's BitmapLayer
+    takes `image` + `bounds` instead of a data array.
+
     Example:
         >>> BitmapLayer(
         ...     id='satellite',
