@@ -11,6 +11,20 @@ Direct deck.gl wrapper for Plotly Dash - high-performance WebGL-powered visualiz
 pip install deckgl-dash
 ```
 
+## Choosing a Basemap
+
+There are two basemap paths — pick based on what you need:
+
+| | **MapLibre GL JS** (`maplibre_config`) | **Bare `TileLayer`** |
+|---|---|---|
+| Best for | Real basemaps: vector styles, WMS, runtime style switching, labels, attribution | Zero-config demos, deck-only rendering, single raster tile source |
+| Styles | Full MapLibre style JSON (CARTO, custom, WMS sources) | One raster tile URL template |
+| Attribution | Built-in control | Manual |
+| Interleaving | deck.gl layers can render under map labels (`interleaved`) | n/a — everything is a deck.gl layer |
+| Example | [`examples/maplibre_demo.py`](examples/maplibre_demo.py), [`examples/maplibre_wms_demo.py`](examples/maplibre_wms_demo.py) | [`examples/basic_usage.py`](examples/basic_usage.py) |
+
+The Quick Start below uses the **bare `TileLayer`** path for zero configuration; for anything beyond a quick demo, start from the [MapLibre GL JS Integration](#maplibre-gl-js-integration) section instead.
+
 ## Quick Start
 
 ```python
