@@ -97,6 +97,8 @@ _UNIVERSAL_PROPS = frozenset({
     'extensions', 'update_triggers', 'load_options', 'transitions',
     # GPU time filtering works on any layer via DataFilterExtension
     'get_filter_value', 'filter_range', 'filter_soft_range', 'filter_enabled',
+    # Zoom-gated visibility (#38) applies to any layer
+    'visible_min_zoom', 'visible_max_zoom',
 })
 
 
