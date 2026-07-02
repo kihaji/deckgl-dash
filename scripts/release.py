@@ -18,8 +18,6 @@ from check_versions import check  # noqa: E402
 FILES_TO_UPDATE = [
     ("pyproject.toml", r'version = "[^"]+"', 'version = "{version}"'),
     ("deckgl_dash/package-info.json", r'"version": "[^"]+"', '"version": "{version}"'),
-    ("DESCRIPTION", r'Version: [^\n]+', 'Version: {version}'),
-    ("Project.toml", r'version = "[^"]+"', 'version = "{version}"'),
 ]
 
 
