@@ -14,13 +14,6 @@ components_package = 'deckgl_dash'
 components_lib = importlib.import_module(components_package)
 
 missing_dist_msg = 'Warning {} was not found in `{}.__init__.{}`!!!'
-missing_manifest_msg = '''
-Warning {} was not found in `MANIFEST.in`!
-It will not be included in the build!
-'''
-
-with open('MANIFEST.in', 'r') as f:
-    manifest = f.read()
 
 
 def check_dist(dist, filename):
@@ -39,19 +32,12 @@ def check_dist(dist, filename):
     )
 
 
-def check_manifest(filename):
-    return filename in manifest
-
-
 def check_file(dist, filename):
     if not check_dist(dist, filename):
         print(
             missing_dist_msg.format(filename, components_package, '_js_dist'),
             file=sys.stderr
         )
-    if not check_manifest(filename):
-        print(missing_manifest_msg.format(filename),
-              file=sys.stderr)
 
 
 for cur, _, files in os.walk(components_package):
@@ -63,5 +49,3 @@ for cur, _, files in os.walk(components_package):
         elif f.endswith('css'):
             # noinspection PyProtectedMember
             check_file(components_lib._css_dist, f)
-        elif not f.endswith('py'):
-            check_manifest(f)
