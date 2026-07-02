@@ -115,14 +115,20 @@ _js_dist.extend(
         {
             'relative_package_path': 'deckgl_dash.min.js',
             'namespace': package_name
-        },
+        }
+    ]
+)
+
+# The source map is excluded from the wheel (pyproject `exclude`) to save ~10 MB;
+# only declare it when present (dev checkouts) so Dash never references a missing file.
+if _os.path.exists(_os.path.join(_basepath, 'deckgl_dash.min.js.map')):
+    _js_dist.append(
         {
             'relative_package_path': 'deckgl_dash.min.js.map',
             'namespace': package_name,
             'dynamic': True
         }
-    ]
-)
+    )
 
 _css_dist = []
 
