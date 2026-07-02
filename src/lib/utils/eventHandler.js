@@ -1,175 +1,10 @@
 /**
  * Event Handler - Normalizes deck.gl events for Dash callbacks
- * Handles click, hover, and drag events with consistent output format
  */
-
-/**
- * Normalize a deck.gl picking info object for Dash callbacks
- * @param {Object} info - deck.gl picking info object
- * @returns {Object|null} Normalized event info or null if no valid info
- */
-export function normalizePickInfo(info) {
-    if (!info) {
-        return null;
-    }
-    const picked = Boolean(info.picked);
-    const normalized = {
-        // Basic pick info
-        picked,
-        index: picked ? info.index : null,
-        layerId: info.layer?.id || null,
-        // Coordinates
-        coordinate: info.coordinate || null,
-        x: info.x,
-        y: info.y,
-        // Pixel coordinates
-        pixel: info.pixel || [info.x, info.y],
-        // Object data (the actual feature/data item)
-        object: picked ? serializeObject(info.object) : null,
-        // For GeoJSON features
-        properties: picked ? (info.object?.properties || null) : null,
-        // Source layer for MVT/Tile layers
-        sourceLayer: info.sourceLayer || null,
-    };
-    return normalized;
-}
-
-/**
- * Serialize an object for JSON transport to Python
- * Handles GeoJSON features, plain objects, and primitives
- * Includes cycle detection to prevent infinite recursion
- * @param {*} obj - Object to serialize
- * @param {Set} seen - Set of already-visited objects (for cycle detection)
- * @param {number} depth - Current recursion depth
- * @returns {*} Serializable version of the object
- */
-function serializeObject(obj, seen = new Set(), depth = 0) {
-    // Prevent infinite recursion with depth limit
-    const MAX_DEPTH = 10;
-    if (depth > MAX_DEPTH) {
-        return '[max depth exceeded]';
-    }
-    if (obj === null || obj === undefined) {
-        return null;
-    }
-    // Handle primitives
-    if (typeof obj !== 'object') {
-        return obj;
-    }
-    // Cycle detection - if we've seen this object before, skip it
-    if (seen.has(obj)) {
-        return '[circular reference]';
-    }
-    seen.add(obj);
-    // Handle arrays
-    if (Array.isArray(obj)) {
-        return obj.map(item => serializeObject(item, seen, depth + 1));
-    }
-    // Handle GeoJSON features - extract only safe properties
-    if (obj.type === 'Feature') {
-        return {
-            type: 'Feature',
-            geometry: serializeObject(obj.geometry, seen, depth + 1),
-            properties: obj.properties ? serializeObject(obj.properties, seen, depth + 1) : {},
-            id: obj.id,
-        };
-    }
-    // Handle plain objects - only include serializable properties
-    const serialized = {};
-    for (const [key, value] of Object.entries(obj)) {
-        // Skip functions, symbols, and other non-serializable types
-        if (typeof value === 'function' || typeof value === 'symbol') {
-            continue;
-        }
-        // Skip internal/private properties
-        if (key.startsWith('_')) {
-            continue;
-        }
-        // Skip known problematic deck.gl internal properties
-        if (['layer', 'sourceLayer', 'tile', 'viewport'].includes(key)) {
-            continue;
-        }
-        // Recursively serialize nested objects
-        try {
-            serialized[key] = serializeObject(value, seen, depth + 1);
-        } catch (e) {
-            // Skip properties that fail to serialize
-            console.warn(`Failed to serialize property ${key}:`, e);
-        }
-    }
-    return serialized;
-}
-
-/**
- * Create a click event handler that updates Dash props
- * @param {Function} setProps - Dash setProps function
- * @param {boolean|Array} enableEvents - Event configuration
- * @returns {Function} Click handler function
- */
-export function createClickHandler(setProps, enableEvents) {
-    if (!isEventEnabled('click', enableEvents)) {
-        return undefined;
-    }
-    return (info, event) => {
-        const normalized = normalizePickInfo(info);
-        setProps({
-            clickInfo: normalized,
-            clickEvent: {
-                timestamp: Date.now(),
-                srcEvent: event?.srcEvent ? {
-                    clientX: event.srcEvent.clientX,
-                    clientY: event.srcEvent.clientY,
-                    button: event.srcEvent.button,
-                } : null,
-            },
-        });
-    };
-}
-
-/**
- * Create a hover event handler that updates Dash props
- * @param {Function} setProps - Dash setProps function
- * @param {boolean|Array} enableEvents - Event configuration
- * @returns {Function} Hover handler function
- */
-export function createHoverHandler(setProps, enableEvents) {
-    if (!isEventEnabled('hover', enableEvents)) {
-        return undefined;
-    }
-    return (info) => {
-        const normalized = normalizePickInfo(info);
-        setProps({
-            hoverInfo: normalized,
-        });
-    };
-}
-
-/**
- * Create a drag event handler for view state changes
- * @param {Function} setProps - Dash setProps function
- * @param {boolean|Array} enableEvents - Event configuration
- * @returns {Function} View state change handler
- */
-export function createViewStateChangeHandler(setProps, enableEvents) {
-    if (!isEventEnabled('viewStateChange', enableEvents)) {
-        return undefined;
-    }
-    return ({ viewState }) => {
-        setProps({
-            viewState: {
-                longitude: viewState.longitude,
-                latitude: viewState.latitude,
-                zoom: viewState.zoom,
-                pitch: viewState.pitch || 0,
-                bearing: viewState.bearing || 0,
-            },
-        });
-    };
-}
 
 /**
  * Check if a specific event type is enabled
- * @param {string} eventType - Event type ('click', 'hover', 'viewStateChange')
+ * @param {string} eventType - Event type ('click', 'hover', 'viewStateChange', 'dataLoad', 'dataLoadError')
  * @param {boolean|Array} enableEvents - Event configuration
  * @returns {boolean}
  */
@@ -184,17 +19,85 @@ export function isEventEnabled(eventType, enableEvents) {
 }
 
 /**
- * Get all enabled event types
- * @param {boolean|Array} enableEvents - Event configuration
- * @returns {Array} Array of enabled event type strings
+ * Normalize a deck.gl picking info object for Dash callbacks
  */
-export function getEnabledEvents(enableEvents) {
-    const allEvents = ['click', 'hover', 'viewStateChange', 'dataLoad', 'dataLoadError'];
-    if (enableEvents === true) {
-        return allEvents;
+export function normalizePickInfo(info) {
+    if (!info) {
+        return null;
     }
-    if (Array.isArray(enableEvents)) {
-        return enableEvents.filter(e => allEvents.includes(e));
+    const picked = Boolean(info.picked);
+    // Serialize the object only when a feature was picked
+    const serializedObject = picked ? serializeObject(info.object) : null;
+    const properties = picked ? (serializedObject?.properties || null) : null;
+
+    return {
+        picked,
+        index: picked && typeof info.index === 'number' ? info.index : null,
+        layerId: info.layer?.id || null,
+        coordinate: Array.isArray(info.coordinate) ? [...info.coordinate] : null,
+        x: typeof info.x === 'number' ? info.x : null,
+        y: typeof info.y === 'number' ? info.y : null,
+        pixel: Array.isArray(info.pixel) ? [...info.pixel] : [info.x, info.y],
+        object: serializedObject,
+        properties: properties,
+    };
+}
+
+/**
+ * Serialize an object for JSON transport to Python
+ * Uses JSON.stringify with a custom replacer to handle cycles
+ */
+export function serializeObject(obj) {
+    if (obj === null || obj === undefined) {
+        return null;
     }
-    return [];
+    // For GeoJSON features, extract only the standard GeoJSON properties
+    if (obj && typeof obj === 'object' && obj.type === 'Feature') {
+        return {
+            type: 'Feature',
+            geometry: safeClone(obj.geometry),
+            properties: safeClone(obj.properties) || {},
+            id: obj.id,
+        };
+    }
+    // For other objects, do a safe clone
+    return safeClone(obj);
+}
+
+/**
+ * Safely clone an object, handling circular references
+ */
+function safeClone(obj) {
+    if (obj === null || obj === undefined) {
+        return null;
+    }
+    if (typeof obj !== 'object') {
+        return obj;
+    }
+    try {
+        // Use JSON round-trip with cycle detection
+        const seen = new WeakSet();
+        return JSON.parse(JSON.stringify(obj, (key, value) => {
+            // Skip functions and symbols
+            if (typeof value === 'function' || typeof value === 'symbol') {
+                return undefined;
+            }
+            // Skip private properties
+            if (key.startsWith('_')) {
+                return undefined;
+            }
+            // Handle objects - check for cycles
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                    return undefined; // Skip circular reference
+                }
+                seen.add(value);
+            }
+            return value;
+        }));
+    } catch (e) {
+        // If JSON serialization fails, return a minimal safe object
+        console.warn('Failed to serialize object:', e);
+        return null;
+    }
 }
