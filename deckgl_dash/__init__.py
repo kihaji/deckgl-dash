@@ -93,7 +93,10 @@ _js_dist.extend(
     ]
 )
 
-# TODO: Figure out if unpkg link works
+# Note: the unpkg external_url entries above/below are boilerplate that only applies
+# when async_resources is non-empty AND the app sets serve_locally=False. This package
+# is not published to npm, so unpkg would 404 — keep async_resources empty (bundle is
+# served locally from the wheel) unless the package is also published to npm.
 _js_dist.extend(
     [
         {
