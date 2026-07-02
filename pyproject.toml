@@ -36,8 +36,9 @@ coordinates = ["pyproj", "mgrs"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
-dash = {extras = ["testing"], version = ">=2.0.0"}
+dash = {extras = ["testing"], version = "^3.4"}
 pyyaml = "^6.0.3"
+selenium = ">=4.1,<4.3"  # floor at 4.x (3.141 breaks with urllib3 2); ceiling from dash[testing]'s selenium<=4.2.0 pin
 
 [tool.poetry.group.docs.dependencies]
 mkdocs-material = "^9.0"

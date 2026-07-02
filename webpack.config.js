@@ -34,7 +34,9 @@ module.exports = (env, argv) => {
 
     const entry = overrides.entry || {main: './src/lib/index.js'};
 
-    const devtool = overrides.devtool || 'source-map';
+    // Source maps come from the explicit SourceMapDevToolPlugin below; a devtool
+    // string here would emit the same .map twice, which webpack >= 5.105 rejects.
+    const devtool = 'devtool' in overrides ? overrides.devtool : false;
 
     // Only externalize React, ReactDOM, and PropTypes (provided by Dash)
     // deck.gl and luma.gl should be bundled
