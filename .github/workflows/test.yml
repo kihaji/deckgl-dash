@@ -32,6 +32,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Run JavaScript tests
+        run: npm test
+
       - name: Build JavaScript bundle
         run: npm run build:js
 
