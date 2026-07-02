@@ -125,6 +125,16 @@ class TestColorRangeFromScale:
         with pytest.raises(ValueError, match="Unknown scale"):
             color_range_from_scale('not_a_real_scale', 6)
 
+    def test_every_available_scale_has_own_colors(self):
+        """Every advertised scale returns its own colors — no silent viridis substitution (issue #12)."""
+        from deckgl_dash.colors import _SCALE_COLORS, _hex_to_rgb
+        assert set(_SCALE_COLORS) == set(AVAILABLE_SCALES)
+        for name in AVAILABLE_SCALES:
+            colors = color_range_from_scale(name, 6)
+            assert len(colors) == 6
+            assert colors[0] == list(_hex_to_rgb(_SCALE_COLORS[name][0])), f"{name}: first color wrong"
+            assert colors[-1] == list(_hex_to_rgb(_SCALE_COLORS[name][-1])), f"{name}: last color wrong"
+
 
 class TestAvailableScales:
     """Tests for AVAILABLE_SCALES constant."""
