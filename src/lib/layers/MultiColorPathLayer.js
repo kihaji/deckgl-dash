@@ -29,6 +29,11 @@ export default class MultiColorPathLayer extends PathLayer {
         const { data, getPath, getColor } = this.props;
         const { value } = attribute;
 
+        // Rate-limit the mismatch warning: with thousands of paths, one warn per
+        // offending path floods the console and slows the attribute update itself.
+        let mismatches = 0;
+        let firstMismatch = null;
+
         let i = 0;
         for (const object of data) {
             const path = getPath(object);
@@ -36,12 +41,8 @@ export default class MultiColorPathLayer extends PathLayer {
 
             if (Array.isArray(color[0])) {
                 // Per-segment colors: expect one color per segment (N points => N-1 segments).
-                if (color.length !== path.length - 1) {
-                     
-                    console.warn(
-                        `MultiColorPathLayer: getColor returned ${color.length} colors for a path ` +
-                        `with ${path.length} points (expected ${path.length - 1}). Rendering may be misaligned.`
-                    );
+                if (color.length !== path.length - 1 && mismatches++ === 0) {
+                    firstMismatch = `getColor returned ${color.length} colors for a path with ${path.length} points (expected ${path.length - 1})`;
                 }
                 for (const segmentColor of color) {
                     value[i++] = segmentColor[0];
@@ -58,6 +59,9 @@ export default class MultiColorPathLayer extends PathLayer {
                     value[i++] = isNaN(color[3]) ? 255 : color[3];
                 }
             }
+        }
+        if (mismatches > 0) {
+            console.warn(`MultiColorPathLayer: ${firstMismatch}. Rendering may be misaligned. (${mismatches} path(s) affected)`);
         }
     }
 }
