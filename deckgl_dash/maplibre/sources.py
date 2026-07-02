@@ -1,5 +1,6 @@
 """MapLibre source classes for deckgl-dash."""
 from __future__ import annotations
+import warnings
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
 
@@ -137,6 +138,15 @@ class RasterSource:
         return f"RasterSource(tiles={self.tiles}, tile_size={self.tile_size})"
 
 
+def _resolve_promote_id(promote_id, promoteId):
+    """Prefer promote_id; accept the deprecated camelCase promoteId alias with a warning."""
+    if promoteId is not None:
+        warnings.warn("The 'promoteId' parameter is deprecated; use 'promote_id' instead.", DeprecationWarning, stacklevel = 3)
+        if promote_id is None:
+            return promoteId
+    return promote_id
+
+
 class VectorSource:
     """MapLibre vector tile source for PBF/MVT tiles.
 
@@ -156,7 +166,8 @@ class VectorSource:
         bounds: Optional[List[float]] = None,
         attribution: Optional[str] = None,
         scheme: str = 'xyz',
-        promoteId: Optional[Union[str, Dict[str, str]]] = None,
+        promote_id: Optional[Union[str, Dict[str, str]]] = None,
+        promoteId: Optional[Union[str, Dict[str, str]]] = None,  # deprecated alias for promote_id
     ):
         """Initialize vector source.
 
@@ -168,7 +179,8 @@ class VectorSource:
             bounds: Bounding box [west, south, east, north] in WGS84.
             attribution: Attribution string for the source.
             scheme: Tile scheme - 'xyz' (default) or 'tms'.
-            promoteId: Property to use as feature ID. String for all layers, or dict mapping layer names to properties.
+            promote_id: Property to use as feature ID. String for all layers, or dict mapping layer names to properties.
+            promoteId: Deprecated alias for promote_id (emits DeprecationWarning).
         """
         self.tiles = tiles
         self.url = url
@@ -177,7 +189,7 @@ class VectorSource:
         self.bounds = bounds
         self.attribution = attribution
         self.scheme = scheme
-        self.promoteId = promoteId
+        self.promote_id = _resolve_promote_id(promote_id, promoteId)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to MapLibre source spec dict."""
@@ -196,9 +208,14 @@ class VectorSource:
             result['attribution'] = self.attribution
         if self.scheme != 'xyz':
             result['scheme'] = self.scheme
-        if self.promoteId:
-            result['promoteId'] = self.promoteId
+        if self.promote_id:
+            result['promoteId'] = self.promote_id
         return result
+
+    @property
+    def promoteId(self):
+        """Deprecated attribute alias for promote_id."""
+        return self.promote_id
 
     def __repr__(self) -> str:
         if self.url:
@@ -229,8 +246,9 @@ class GeoJSONSource:
         buffer: int = 128,
         max_zoom: int = 18,
         attribution: Optional[str] = None,
-        promoteId: Optional[str] = None,
+        promote_id: Optional[str] = None,
         generate_id: bool = False,
+        promoteId: Optional[str] = None,  # deprecated alias for promote_id
     ):
         """Initialize GeoJSON source.
 
@@ -246,8 +264,9 @@ class GeoJSONSource:
             buffer: Tile buffer size. Default 128.
             max_zoom: Maximum zoom level to generate tiles. Default 18.
             attribution: Attribution string.
-            promoteId: Property to use as feature ID.
+            promote_id: Property to use as feature ID.
             generate_id: Auto-generate feature IDs. Default False.
+            promoteId: Deprecated alias for promote_id (emits DeprecationWarning).
         """
         self.data = data
         self.cluster = cluster
@@ -260,7 +279,7 @@ class GeoJSONSource:
         self.buffer = buffer
         self.max_zoom = max_zoom
         self.attribution = attribution
-        self.promoteId = promoteId
+        self.promote_id = _resolve_promote_id(promote_id, promoteId)
         self.generate_id = generate_id
 
     def to_dict(self) -> Dict[str, Any]:
@@ -285,11 +304,16 @@ class GeoJSONSource:
             result['maxzoom'] = self.max_zoom
         if self.attribution:
             result['attribution'] = self.attribution
-        if self.promoteId:
-            result['promoteId'] = self.promoteId
+        if self.promote_id:
+            result['promoteId'] = self.promote_id
         if self.generate_id:
             result['generateId'] = True
         return result
+
+    @property
+    def promoteId(self):
+        """Deprecated attribute alias for promote_id."""
+        return self.promote_id
 
     def __repr__(self) -> str:
         if isinstance(self.data, str):
