@@ -703,6 +703,17 @@ const DeckGL = ({
         });
     }, [fitBounds]);
 
+    // Deck-only mode: compute effective controller with drawing overrides.
+    // Must stay above the MapLibre early return — hooks may not run conditionally.
+    const effectiveController = useMemo(() => {
+        if (controller === false) return false;
+        const base = typeof controller === 'object' ? controller : {};
+        if (isActiveDrawingMode) {
+            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
+        }
+        return controller || true;
+    }, [controller, isActiveDrawingMode, isDragDrawMode]);
+
     // ===========================================
     // Render
     // ===========================================
@@ -721,16 +732,6 @@ const DeckGL = ({
             </div>
         );
     }
-
-    // Standard deck.gl-only mode — compute effective controller with drawing overrides
-    const effectiveController = useMemo(() => {
-        if (controller === false) return false;
-        const base = typeof controller === 'object' ? controller : {};
-        if (isActiveDrawingMode) {
-            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
-        }
-        return controller || true;
-    }, [controller, isActiveDrawingMode, isDragDrawMode]);
 
     // Apply the time-filter window to the rendered layers (cheap clone of target layers
     // only) so React re-renders stay consistent with the rAF loop's imperative updates.
