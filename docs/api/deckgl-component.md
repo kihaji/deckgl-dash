@@ -99,7 +99,7 @@ def zoom_to_fit(n):
 `compute_bounds(data, *, get_coordinates=None)` returns `[[west, south], [east, north]]`
 and raises `ValueError` if no coordinates are found. Pass `get_coordinates` to extract
 coordinates from a non-standard key. See `examples/zoom_to_fit_demo.py` (deck-only) and
-`examples/hexagon_deferred_load_demo.py` (MapLibre).
+`examples/all_layers_deferred_visibility_demo.py` (deferred load across all layer types).
 
 ## Time Filtering and Animation
 
@@ -194,7 +194,7 @@ def control(_play, _pause, slider_value, current_time, tf):
 
 Direction-of-travel arrows (`show_direction=True`) filter together with their lines. See
 `examples/time_slider_demo.py` (scatter points) and
-`examples/path_arrows_time_slider_demo.py` (directed paths).
+`examples/time_slider_demo.py` (time slider) and `examples/directed_path_demo.py` (directed paths).
 
 ## Enabling Events
 

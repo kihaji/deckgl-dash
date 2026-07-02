@@ -20,7 +20,7 @@ app.layout = html.Div([
                 'tileSize': 256,
             }
         ],
-        initialViewState = {
+        initial_view_state = {
             'longitude': -122.4,
             'latitude': 37.8,
             'zoom': 11,

@@ -13,51 +13,11 @@ in red. The whole track remains a single pickable/hoverable object.
 """
 from dash import Dash, html, callback, Output, Input
 import json
-import math
 
 from deckgl_dash import DeckGL
 from deckgl_dash.layers import TileLayer, PathLayer
 
-# A track of (lon, lat, t_seconds) fixes around San Francisco.
-# The jump from index 3 -> 4 covers a large distance in a tiny time delta: impossible.
-TRACK = [
-    (-122.420, 37.770, 0),
-    (-122.415, 37.772, 60),
-    (-122.410, 37.774, 120),
-    (-122.405, 37.776, 180),
-    (-122.360, 37.800, 190),   # <-- impossible: ~5 km in 10 s
-    (-122.355, 37.802, 250),
-    (-122.350, 37.804, 310),
-]
-
-# Speed (m/s) above which a segment is flagged "impossible".
-IMPOSSIBLE_SPEED_MPS = 100.0  # ~360 km/h
-NORMAL_COLOR = [30, 110, 230]    # blue
-IMPOSSIBLE_COLOR = [230, 30, 30]  # red
-
-
-def _haversine_m(lon1, lat1, lon2, lat2):
-    """Great-circle distance between two lon/lat points, in meters."""
-    r = 6371000.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlmb = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(a))
-
-
-def speeds_to_colors(track):
-    """Compute one color per segment from per-segment speed.
-
-    Returns a list of [r, g, b] colors of length len(track) - 1 (one per segment).
-    """
-    colors = []
-    for (lon1, lat1, t1), (lon2, lat2, t2) in zip(track, track[1:]):
-        dt = max(t2 - t1, 1e-6)
-        speed = _haversine_m(lon1, lat1, lon2, lat2) / dt
-        colors.append(IMPOSSIBLE_COLOR if speed > IMPOSSIBLE_SPEED_MPS else NORMAL_COLOR)
-    return colors
-
+from _common import TRACK, speeds_to_colors
 
 # Build a single track feature: one path, one color-per-segment list.
 TRACK_DATA = [{
