@@ -65,46 +65,16 @@ class GeoJsonLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        # Rendering
-        self._set_prop('filled', filled)
-        self._set_prop('stroked', stroked)
-        self._set_prop('extruded', extruded)
-        self._set_prop('wireframe', wireframe)
-        self._set_prop('point_type', point_type)
-        # Style accessors
-        self._set_prop('get_fill_color', get_fill_color)
-        self._set_prop('get_line_color', get_line_color)
-        self._set_prop('get_line_width', get_line_width)
-        self._set_prop('get_point_radius', get_point_radius)
-        self._set_prop('get_elevation', get_elevation)
-        # Time filtering
-        self._set_prop('get_filter_value', get_filter_value)
-        self._set_prop('filter_range', filter_range)
-        self._set_prop('filter_soft_range', filter_soft_range)
-        self._set_prop('filter_enabled', filter_enabled)
-        # Size scales
-        self._set_prop('line_width_units', line_width_units)
-        self._set_prop('line_width_scale', line_width_scale)
-        self._set_prop('line_width_min_pixels', line_width_min_pixels)
-        self._set_prop('line_width_max_pixels', line_width_max_pixels)
-        self._set_prop('point_radius_units', point_radius_units)
-        self._set_prop('point_radius_scale', point_radius_scale)
-        self._set_prop('point_radius_min_pixels', point_radius_min_pixels)
-        self._set_prop('point_radius_max_pixels', point_radius_max_pixels)
-        self._set_prop('elevation_scale', elevation_scale)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, filled = filled, stroked = stroked, extruded = extruded, wireframe = wireframe, point_type = point_type,
+                         get_fill_color = get_fill_color, get_line_color = get_line_color, get_line_width = get_line_width,
+                         get_point_radius = get_point_radius, get_elevation = get_elevation, get_filter_value = get_filter_value,
+                         filter_range = filter_range, filter_soft_range = filter_soft_range, filter_enabled = filter_enabled,
+                         line_width_units = line_width_units, line_width_scale = line_width_scale, line_width_min_pixels = line_width_min_pixels,
+                         line_width_max_pixels = line_width_max_pixels, point_radius_units = point_radius_units,
+                         point_radius_scale = point_radius_scale, point_radius_min_pixels = point_radius_min_pixels,
+                         point_radius_max_pixels = point_radius_max_pixels, elevation_scale = elevation_scale, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, load_options = load_options, opacity = opacity,
+                         visible = visible, **kwargs)
 
 
 class ScatterplotLayer(BaseLayer):
@@ -164,45 +134,15 @@ class ScatterplotLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        # Rendering
-        self._set_prop('filled', filled)
-        self._set_prop('stroked', stroked)
-        # Style accessors
-        self._set_prop('get_radius', get_radius)
-        self._set_prop('get_fill_color', get_fill_color)
-        self._set_prop('get_line_color', get_line_color)
-        self._set_prop('get_line_width', get_line_width)
-        # Time filtering
-        self._set_prop('get_filter_value', get_filter_value)
-        self._set_prop('filter_range', filter_range)
-        self._set_prop('filter_soft_range', filter_soft_range)
-        self._set_prop('filter_enabled', filter_enabled)
-        # Size scales
-        self._set_prop('radius_units', radius_units)
-        self._set_prop('radius_scale', radius_scale)
-        self._set_prop('radius_min_pixels', radius_min_pixels)
-        self._set_prop('radius_max_pixels', radius_max_pixels)
-        self._set_prop('line_width_units', line_width_units)
-        self._set_prop('line_width_scale', line_width_scale)
-        self._set_prop('line_width_min_pixels', line_width_min_pixels)
-        self._set_prop('line_width_max_pixels', line_width_max_pixels)
-        # Billboard
-        self._set_prop('billboard', billboard)
-        self._set_prop('anti_aliasing', anti_aliasing)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, filled = filled, stroked = stroked, get_radius = get_radius,
+                         get_fill_color = get_fill_color, get_line_color = get_line_color, get_line_width = get_line_width,
+                         get_filter_value = get_filter_value, filter_range = filter_range, filter_soft_range = filter_soft_range,
+                         filter_enabled = filter_enabled, radius_units = radius_units, radius_scale = radius_scale,
+                         radius_min_pixels = radius_min_pixels, radius_max_pixels = radius_max_pixels, line_width_units = line_width_units,
+                         line_width_scale = line_width_scale, line_width_min_pixels = line_width_min_pixels,
+                         line_width_max_pixels = line_width_max_pixels, billboard = billboard, anti_aliasing = anti_aliasing, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, load_options = load_options, opacity = opacity,
+                         visible = visible, **kwargs)
 
 
 class PathLayer(BaseLayer):
@@ -294,45 +234,15 @@ class PathLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
+        super().__init__(id, data = data, get_path = get_path, get_color = get_color, get_width = get_width, get_filter_value = get_filter_value,
+                         filter_range = filter_range, filter_soft_range = filter_soft_range, filter_enabled = filter_enabled,
+                         arrow_spacing = arrow_spacing, arrow_size = arrow_size, arrow_color = arrow_color, width_units = width_units,
+                         width_scale = width_scale, width_min_pixels = width_min_pixels, width_max_pixels = width_max_pixels,
+                         cap_rounded = cap_rounded, joint_rounded = joint_rounded, billboard = billboard, miter_limit = miter_limit,
+                         _path_type = _path_type, pickable = pickable, auto_highlight = auto_highlight, highlight_color = highlight_color,
+                         load_options = load_options, opacity = opacity, visible = visible, **kwargs)
         self._multi_color = bool(multi_color)
         self._show_direction = bool(show_direction)
-        self._set_prop('data', data)
-        self._set_prop('get_path', get_path)
-        # Style accessors
-        self._set_prop('get_color', get_color)
-        self._set_prop('get_width', get_width)
-        # Time filtering
-        self._set_prop('get_filter_value', get_filter_value)
-        self._set_prop('filter_range', filter_range)
-        self._set_prop('filter_soft_range', filter_soft_range)
-        self._set_prop('filter_enabled', filter_enabled)
-        # Direction arrows
-        self._set_prop('arrow_spacing', arrow_spacing)
-        self._set_prop('arrow_size', arrow_size)
-        self._set_prop('arrow_color', arrow_color)
-        # Width settings
-        self._set_prop('width_units', width_units)
-        self._set_prop('width_scale', width_scale)
-        self._set_prop('width_min_pixels', width_min_pixels)
-        self._set_prop('width_max_pixels', width_max_pixels)
-        # Rendering
-        self._set_prop('cap_rounded', cap_rounded)
-        self._set_prop('joint_rounded', joint_rounded)
-        self._set_prop('billboard', billboard)
-        self._set_prop('miter_limit', miter_limit)
-        self._set_prop('_path_type', _path_type)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
@@ -386,29 +296,11 @@ class LineLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_source_position', get_source_position)
-        self._set_prop('get_target_position', get_target_position)
-        # Style
-        self._set_prop('get_color', get_color)
-        self._set_prop('get_width', get_width)
-        # Width
-        self._set_prop('width_units', width_units)
-        self._set_prop('width_scale', width_scale)
-        self._set_prop('width_min_pixels', width_min_pixels)
-        self._set_prop('width_max_pixels', width_max_pixels)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_source_position = get_source_position, get_target_position = get_target_position,
+                         get_color = get_color, get_width = get_width, width_units = width_units, width_scale = width_scale,
+                         width_min_pixels = width_min_pixels, width_max_pixels = width_max_pixels, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, load_options = load_options, opacity = opacity,
+                         visible = visible, **kwargs)
 
 
 class ArcLayer(BaseLayer):
@@ -460,36 +352,12 @@ class ArcLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_source_position', get_source_position)
-        self._set_prop('get_target_position', get_target_position)
-        # Color
-        self._set_prop('get_source_color', get_source_color)
-        self._set_prop('get_target_color', get_target_color)
-        # Dimensions
-        self._set_prop('get_width', get_width)
-        self._set_prop('get_height', get_height)
-        self._set_prop('get_tilt', get_tilt)
-        # Width
-        self._set_prop('width_units', width_units)
-        self._set_prop('width_scale', width_scale)
-        self._set_prop('width_min_pixels', width_min_pixels)
-        self._set_prop('width_max_pixels', width_max_pixels)
-        # Arc
-        self._set_prop('great_circle', great_circle)
-        self._set_prop('num_segments', num_segments)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_source_position = get_source_position, get_target_position = get_target_position,
+                         get_source_color = get_source_color, get_target_color = get_target_color, get_width = get_width, get_height = get_height,
+                         get_tilt = get_tilt, width_units = width_units, width_scale = width_scale, width_min_pixels = width_min_pixels,
+                         width_max_pixels = width_max_pixels, great_circle = great_circle, num_segments = num_segments, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, load_options = load_options, opacity = opacity,
+                         visible = visible, **kwargs)
 
 
 class IconLayer(BaseLayer):
@@ -543,37 +411,11 @@ class IconLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        # Icon config
-        self._set_prop('icon_atlas', icon_atlas)
-        self._set_prop('icon_mapping', icon_mapping)
-        self._set_prop('get_icon', get_icon)
-        # Style
-        self._set_prop('get_size', get_size)
-        self._set_prop('get_color', get_color)
-        self._set_prop('get_angle', get_angle)
-        self._set_prop('get_pixel_offset', get_pixel_offset)
-        # Size
-        self._set_prop('size_units', size_units)
-        self._set_prop('size_scale', size_scale)
-        self._set_prop('size_min_pixels', size_min_pixels)
-        self._set_prop('size_max_pixels', size_max_pixels)
-        # Rendering
-        self._set_prop('billboard', billboard)
-        self._set_prop('alpha_cutoff', alpha_cutoff)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, icon_atlas = icon_atlas, icon_mapping = icon_mapping, get_icon = get_icon,
+                         get_size = get_size, get_color = get_color, get_angle = get_angle, get_pixel_offset = get_pixel_offset,
+                         size_units = size_units, size_scale = size_scale, size_min_pixels = size_min_pixels, size_max_pixels = size_max_pixels,
+                         billboard = billboard, alpha_cutoff = alpha_cutoff, pickable = pickable, auto_highlight = auto_highlight,
+                         highlight_color = highlight_color, load_options = load_options, opacity = opacity, visible = visible, **kwargs)
 
 
 class TextLayer(BaseLayer):
@@ -639,49 +481,15 @@ class TextLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        self._set_prop('get_text', get_text)
-        # Style
-        self._set_prop('get_size', get_size)
-        self._set_prop('get_color', get_color)
-        self._set_prop('get_angle', get_angle)
-        self._set_prop('get_text_anchor', get_text_anchor)
-        self._set_prop('get_alignment_baseline', get_alignment_baseline)
-        self._set_prop('get_pixel_offset', get_pixel_offset)
-        # Size
-        self._set_prop('size_units', size_units)
-        self._set_prop('size_scale', size_scale)
-        self._set_prop('size_min_pixels', size_min_pixels)
-        self._set_prop('size_max_pixels', size_max_pixels)
-        # Font
-        self._set_prop('font_family', font_family)
-        self._set_prop('font_weight', font_weight)
-        self._set_prop('character_set', character_set)
-        self._set_prop('line_height', line_height)
-        self._set_prop('max_width', max_width)
-        self._set_prop('word_break', word_break)
-        # Background
-        self._set_prop('background', background)
-        self._set_prop('background_color', background_color)
-        self._set_prop('get_background_color', get_background_color)
-        self._set_prop('background_padding', background_padding)
-        # Rendering
-        self._set_prop('billboard', billboard)
-        self._set_prop('outline_width', outline_width)
-        self._set_prop('outline_color', outline_color)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, get_text = get_text, get_size = get_size, get_color = get_color,
+                         get_angle = get_angle, get_text_anchor = get_text_anchor, get_alignment_baseline = get_alignment_baseline,
+                         get_pixel_offset = get_pixel_offset, size_units = size_units, size_scale = size_scale, size_min_pixels = size_min_pixels,
+                         size_max_pixels = size_max_pixels, font_family = font_family, font_weight = font_weight, character_set = character_set,
+                         line_height = line_height, max_width = max_width, word_break = word_break, background = background,
+                         background_color = background_color, get_background_color = get_background_color, background_padding = background_padding,
+                         billboard = billboard, outline_width = outline_width, outline_color = outline_color, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, load_options = load_options, opacity = opacity,
+                         visible = visible, **kwargs)
 
 
 class PolygonLayer(BaseLayer):
@@ -734,34 +542,9 @@ class PolygonLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_polygon', get_polygon)
-        # Rendering
-        self._set_prop('filled', filled)
-        self._set_prop('stroked', stroked)
-        self._set_prop('extruded', extruded)
-        self._set_prop('wireframe', wireframe)
-        # Style
-        self._set_prop('get_fill_color', get_fill_color)
-        self._set_prop('get_line_color', get_line_color)
-        self._set_prop('get_line_width', get_line_width)
-        self._set_prop('get_elevation', get_elevation)
-        # Width
-        self._set_prop('line_width_units', line_width_units)
-        self._set_prop('line_width_scale', line_width_scale)
-        self._set_prop('line_width_min_pixels', line_width_min_pixels)
-        self._set_prop('line_width_max_pixels', line_width_max_pixels)
-        # Elevation
-        self._set_prop('elevation_scale', elevation_scale)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_polygon = get_polygon, filled = filled, stroked = stroked, extruded = extruded, wireframe = wireframe,
+                         get_fill_color = get_fill_color, get_line_color = get_line_color, get_line_width = get_line_width,
+                         get_elevation = get_elevation, line_width_units = line_width_units, line_width_scale = line_width_scale,
+                         line_width_min_pixels = line_width_min_pixels, line_width_max_pixels = line_width_max_pixels,
+                         elevation_scale = elevation_scale, pickable = pickable, auto_highlight = auto_highlight, highlight_color = highlight_color,
+                         load_options = load_options, opacity = opacity, visible = visible, **kwargs)
