@@ -46,28 +46,10 @@ class HeatmapLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        self._set_prop('get_weight', get_weight)
-        # Heatmap
-        self._set_prop('radius_pixels', radius_pixels)
-        self._set_prop('intensity', intensity)
-        self._set_prop('threshold', threshold)
-        # Color scale
-        self._set_prop('color_range', color_range)
-        self._set_prop('color_domain', color_domain)
-        # Aggregation
-        self._set_prop('aggregation', aggregation)
-        self._set_prop('weights_texture_size', weights_texture_size)
-        self._set_prop('debounce_timeout', debounce_timeout)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, get_weight = get_weight, radius_pixels = radius_pixels,
+                         intensity = intensity, threshold = threshold, color_range = color_range, color_domain = color_domain,
+                         aggregation = aggregation, weights_texture_size = weights_texture_size, debounce_timeout = debounce_timeout,
+                         pickable = pickable, opacity = opacity, visible = visible, **kwargs)
 
 
 class HexagonLayer(BaseLayer):
@@ -124,41 +106,14 @@ class HexagonLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        # Hexagon
-        self._set_prop('radius', radius)
-        self._set_prop('coverage', coverage)
-        # 3D
-        self._set_prop('extruded', extruded)
-        self._set_prop('elevation_scale', elevation_scale)
-        self._set_prop('elevation_range', elevation_range)
-        # Color
-        self._set_prop('color_range', color_range)
-        self._set_prop('color_domain', color_domain)
-        self._set_prop('color_scale_type', color_scale_type)
-        # Weight
-        self._set_prop('get_color_weight', get_color_weight)
-        self._set_prop('color_aggregation', color_aggregation)
-        self._set_prop('get_elevation_weight', get_elevation_weight)
-        self._set_prop('elevation_aggregation', elevation_aggregation)
-        # Percentile
-        self._set_prop('upper_percentile', upper_percentile)
-        self._set_prop('lower_percentile', lower_percentile)
-        self._set_prop('elevation_upper_percentile', elevation_upper_percentile)
-        self._set_prop('elevation_lower_percentile', elevation_lower_percentile)
-        # Rendering
-        self._set_prop('material', material)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, radius = radius, coverage = coverage, extruded = extruded,
+                         elevation_scale = elevation_scale, elevation_range = elevation_range, color_range = color_range,
+                         color_domain = color_domain, color_scale_type = color_scale_type, get_color_weight = get_color_weight,
+                         color_aggregation = color_aggregation, get_elevation_weight = get_elevation_weight,
+                         elevation_aggregation = elevation_aggregation, upper_percentile = upper_percentile, lower_percentile = lower_percentile,
+                         elevation_upper_percentile = elevation_upper_percentile, elevation_lower_percentile = elevation_lower_percentile,
+                         material = material, pickable = pickable, auto_highlight = auto_highlight, highlight_color = highlight_color,
+                         opacity = opacity, visible = visible, **kwargs)
 
 
 class GridLayer(BaseLayer):
@@ -215,38 +170,11 @@ class GridLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        self._set_prop('get_position', get_position)
-        # Grid
-        self._set_prop('cell_size', cell_size)
-        self._set_prop('coverage', coverage)
-        # 3D
-        self._set_prop('extruded', extruded)
-        self._set_prop('elevation_scale', elevation_scale)
-        self._set_prop('elevation_range', elevation_range)
-        # Color
-        self._set_prop('color_range', color_range)
-        self._set_prop('color_domain', color_domain)
-        self._set_prop('color_scale_type', color_scale_type)
-        # Weight
-        self._set_prop('get_color_weight', get_color_weight)
-        self._set_prop('color_aggregation', color_aggregation)
-        self._set_prop('get_elevation_weight', get_elevation_weight)
-        self._set_prop('elevation_aggregation', elevation_aggregation)
-        # Percentile
-        self._set_prop('upper_percentile', upper_percentile)
-        self._set_prop('lower_percentile', lower_percentile)
-        self._set_prop('elevation_upper_percentile', elevation_upper_percentile)
-        self._set_prop('elevation_lower_percentile', elevation_lower_percentile)
-        # Rendering
-        self._set_prop('material', material)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, get_position = get_position, cell_size = cell_size, coverage = coverage, extruded = extruded,
+                         elevation_scale = elevation_scale, elevation_range = elevation_range, color_range = color_range,
+                         color_domain = color_domain, color_scale_type = color_scale_type, get_color_weight = get_color_weight,
+                         color_aggregation = color_aggregation, get_elevation_weight = get_elevation_weight,
+                         elevation_aggregation = elevation_aggregation, upper_percentile = upper_percentile, lower_percentile = lower_percentile,
+                         elevation_upper_percentile = elevation_upper_percentile, elevation_lower_percentile = elevation_lower_percentile,
+                         material = material, pickable = pickable, auto_highlight = auto_highlight, highlight_color = highlight_color,
+                         opacity = opacity, visible = visible, **kwargs)

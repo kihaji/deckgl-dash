@@ -50,32 +50,10 @@ class TileLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        # Tile settings
-        self._set_prop('tile_size', tile_size)
-        self._set_prop('min_zoom', min_zoom)
-        self._set_prop('max_zoom', max_zoom)
-        self._set_prop('max_cache_size', max_cache_size)
-        self._set_prop('max_cache_byte_size', max_cache_byte_size)
-        self._set_prop('refinement_strategy', refinement_strategy)
-        self._set_prop('z_range', z_range)
-        # Extent
-        self._set_prop('extent', extent)
-        # Loading
-        self._set_prop('max_requests', max_requests)
-        self._set_prop('load_options', load_options)
-        # Rendering
-        self._set_prop('render_sublayers', render_sublayers)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, tile_size = tile_size, min_zoom = min_zoom, max_zoom = max_zoom, max_cache_size = max_cache_size,
+                         max_cache_byte_size = max_cache_byte_size, refinement_strategy = refinement_strategy, z_range = z_range, extent = extent,
+                         max_requests = max_requests, load_options = load_options, render_sublayers = render_sublayers, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, opacity = opacity, visible = visible, **kwargs)
 
 
 class MVTLayer(BaseLayer):
@@ -144,54 +122,17 @@ class MVTLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('data', data)
-        # Tile settings
-        self._set_prop('tile_size', tile_size)
-        self._set_prop('min_zoom', min_zoom)
-        self._set_prop('max_zoom', max_zoom)
-        self._set_prop('max_cache_size', max_cache_size)
-        self._set_prop('max_cache_byte_size', max_cache_byte_size)
-        self._set_prop('refinement_strategy', refinement_strategy)
-        self._set_prop('extent', extent)
-        # Feature key
-        self._set_prop('unique_id_property', unique_id_property)
-        self._set_prop('highlighted_feature_id', highlighted_feature_id)
-        # Rendering
-        self._set_prop('filled', filled)
-        self._set_prop('stroked', stroked)
-        self._set_prop('extruded', extruded)
-        self._set_prop('wireframe', wireframe)
-        self._set_prop('point_type', point_type)
-        # Style
-        self._set_prop('get_fill_color', get_fill_color)
-        self._set_prop('get_line_color', get_line_color)
-        self._set_prop('get_line_width', get_line_width)
-        self._set_prop('get_point_radius', get_point_radius)
-        self._set_prop('get_elevation', get_elevation)
-        # Size scales
-        self._set_prop('line_width_units', line_width_units)
-        self._set_prop('line_width_scale', line_width_scale)
-        self._set_prop('line_width_min_pixels', line_width_min_pixels)
-        self._set_prop('line_width_max_pixels', line_width_max_pixels)
-        self._set_prop('point_radius_units', point_radius_units)
-        self._set_prop('point_radius_scale', point_radius_scale)
-        self._set_prop('point_radius_min_pixels', point_radius_min_pixels)
-        self._set_prop('point_radius_max_pixels', point_radius_max_pixels)
-        self._set_prop('elevation_scale', elevation_scale)
-        # Binary
-        self._set_prop('binary', binary)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, data = data, tile_size = tile_size, min_zoom = min_zoom, max_zoom = max_zoom, max_cache_size = max_cache_size,
+                         max_cache_byte_size = max_cache_byte_size, refinement_strategy = refinement_strategy, extent = extent,
+                         unique_id_property = unique_id_property, highlighted_feature_id = highlighted_feature_id, filled = filled,
+                         stroked = stroked, extruded = extruded, wireframe = wireframe, point_type = point_type, get_fill_color = get_fill_color,
+                         get_line_color = get_line_color, get_line_width = get_line_width, get_point_radius = get_point_radius,
+                         get_elevation = get_elevation, line_width_units = line_width_units, line_width_scale = line_width_scale,
+                         line_width_min_pixels = line_width_min_pixels, line_width_max_pixels = line_width_max_pixels,
+                         point_radius_units = point_radius_units, point_radius_scale = point_radius_scale,
+                         point_radius_min_pixels = point_radius_min_pixels, point_radius_max_pixels = point_radius_max_pixels,
+                         elevation_scale = elevation_scale, binary = binary, pickable = pickable, auto_highlight = auto_highlight,
+                         highlight_color = highlight_color, load_options = load_options, opacity = opacity, visible = visible, **kwargs)
 
 
 class BitmapLayer(BaseLayer):
@@ -229,22 +170,6 @@ class BitmapLayer(BaseLayer):
         visible: Optional[bool] = None,
         **kwargs
     ):
-        super().__init__(id)
-        self._set_prop('image', image)
-        self._set_prop('bounds', bounds)
-        # Loading
-        self._set_prop('load_options', load_options)
-        # Rendering
-        self._set_prop('tint_color', tint_color)
-        self._set_prop('desaturate', desaturate)
-        self._set_prop('transparent_color', transparent_color)
-        self._set_prop('texture_parameters', texture_parameters)
-        # Interaction
-        self._set_prop('pickable', pickable)
-        self._set_prop('auto_highlight', auto_highlight)
-        self._set_prop('highlight_color', highlight_color)
-        # Other
-        self._set_prop('opacity', opacity)
-        self._set_prop('visible', visible)
-        for key, value in kwargs.items():
-            self._set_prop(key, value)
+        super().__init__(id, image = image, bounds = bounds, load_options = load_options, tint_color = tint_color, desaturate = desaturate,
+                         transparent_color = transparent_color, texture_parameters = texture_parameters, pickable = pickable,
+                         auto_highlight = auto_highlight, highlight_color = highlight_color, opacity = opacity, visible = visible, **kwargs)
