@@ -99,6 +99,8 @@ _UNIVERSAL_PROPS = frozenset({
     'get_filter_value', 'filter_range', 'filter_soft_range', 'filter_enabled',
     # Zoom-gated visibility (#38) applies to any layer
     'visible_min_zoom', 'visible_max_zoom',
+    # Binary transport opt-in (#39) applies to any layer
+    'use_binary',
 })
 
 
