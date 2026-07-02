@@ -1,6 +1,6 @@
 """DeckGL component wrapper with layer auto-conversion support."""
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from .DeckGL import DeckGL as _DeckGLBase
 from .layers.base import BaseLayer, process_layers

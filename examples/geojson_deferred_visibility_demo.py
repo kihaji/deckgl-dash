@@ -11,7 +11,7 @@ Usage:
 """
 import random
 import json
-from dash import Dash, html, callback, Output, Input, State, ctx, no_update, ALL
+from dash import Dash, html, callback, Output, Input, State, ctx, no_update
 from deckgl_dash import DeckGL
 from deckgl_dash.layers import GeoJsonLayer, process_layers
 from deckgl_dash.maplibre import MapLibreConfig, MapLibreStyle

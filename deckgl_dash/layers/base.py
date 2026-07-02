@@ -1,7 +1,6 @@
 """Base layer class for dash-deckgl Python layer helpers."""
 from __future__ import annotations
-import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 # Type aliases for color values
@@ -37,9 +36,7 @@ def _parse_hex_color(hex_str: str) -> List[int]:
     if not hex_str.startswith('#'):
         raise ValueError(f"Hex color must start with '#', got '{hex_str}'")
     hex_str = hex_str[1:]
-    if len(hex_str) == 3:  # #RGB -> #RRGGBB
-        hex_str = ''.join(c * 2 for c in hex_str)
-    elif len(hex_str) == 4:  # #RGBA -> #RRGGBBAA
+    if len(hex_str) == 3 or len(hex_str) == 4:  # #RGB -> #RRGGBB
         hex_str = ''.join(c * 2 for c in hex_str)
     if len(hex_str) == 6:
         return [int(hex_str[i:i+2], 16) for i in (0, 2, 4)]
@@ -64,7 +61,8 @@ def to_camel_case(snake_str: str) -> str:
     return components[0] + ''.join(x.title() for x in components[1:])
 
 
-class BaseLayer(ABC):
+# Intentionally an ABC with no abstract members: it exists only to be subclassed
+class BaseLayer(ABC):  # noqa: B024
     """Abstract base class for all deck.gl layer helpers.
 
     Provides:

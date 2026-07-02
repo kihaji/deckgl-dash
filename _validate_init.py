@@ -54,7 +54,7 @@ def check_file(dist, filename):
               file=sys.stderr)
 
 
-for cur, _, files in os.walk(components_package):
+for _cur, _, files in os.walk(components_package):
     for f in files:
 
         if f.endswith('js'):
