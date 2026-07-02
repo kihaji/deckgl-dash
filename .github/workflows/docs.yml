@@ -25,10 +25,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install mkdocs-material pymdown-extensions mkdocs-minify-plugin
+        run: pip install uv && uv sync --only-group docs
+        env:
+          DECKGL_DASH_SKIP_JS_BUILD: '1'
 
       - name: Build documentation
-        run: mkdocs build --strict
+        run: uv run mkdocs build --strict
 
       - uses: actions/upload-pages-artifact@v3
         with:

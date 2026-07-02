@@ -286,3 +286,9 @@ DeckGL_Wrapper.md
 
 # Backup files
 *.bak
+
+# Built JS bundle — produced by the hatchling build hook (hatch_build.py) inside
+# `uv build`, or locally via `make build`; no longer git-tracked (#40 phase 2)
+deckgl_dash/deckgl_dash.min.js
+deckgl_dash/deckgl_dash.min.js.map
+deckgl_dash/deckgl_dash.min.js.LICENSE.txt
