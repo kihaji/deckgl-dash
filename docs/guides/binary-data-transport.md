@@ -55,6 +55,26 @@ layer = PolygonLayer(id = 'polys', use_binary = True, data = {
 Note: the composite `PolygonLayer` cannot take binary attributes — the component
 automatically re-types it to `SolidPolygonLayer` (no outlines).
 
+### Per-segment path colors
+
+Per-segment coloring needs **no custom layer** in binary mode — the stock `PathLayer`
+consumes a per-vertex color attribute directly (in JSON mode this requires
+`multi_color=True`, which is incompatible with binary data and raises if combined):
+
+```python
+# One flattened vertex array for all paths, one RGBA color PER VERTEX
+layer = PathLayer(id = 'tracks', use_binary = True, _path_type = 'open', width_min_pixels = 4,
+                  data = {'getPath': verts_f32,       # (total_verts, 2)
+                          'getColor': colors_u8,      # (total_verts, 4)
+                          'startIndices': starts_u32})
+```
+
+Color placement: each segment takes the color of its **leading vertex** — for a path
+of N points (N−1 segments), write segment *i*'s color at vertex *i*; the final
+vertex's color is unused. `_path_type = 'open'` (or `'loop'`) is required so deck.gl
+skips path normalization, which binary data cannot go through. Direction arrows
+(`show_direction=True`) are not yet supported on binary paths (issue #81).
+
 ## Picks and tooltips on binary layers
 
 Binary layers have no per-item JS objects, so:
