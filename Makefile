@@ -4,12 +4,13 @@
 #   make          - Build minified production version
 #   make dev      - Build non-minified development version
 #   make clean    - Remove build artifacts
-#   make release VERSION=x.y.z - Verify clean tree and tag for release
+#   make release VERSION=x.y.z - Verify clean tree + version consistency and tag for release
+#   make check-versions [VERSION=x.y.z] - Verify all version sources agree (and match VERSION if given)
 #   make docs-serve  - Serve docs locally at http://127.0.0.1:8000
 #   make docs-build  - Build docs with strict mode
 #
 
-.PHONY: all build dev clean release check-git check-version quality docs-serve docs-build
+.PHONY: all build dev clean release check-git check-version check-versions quality docs-serve docs-build
 
 # Default target - build production version
 all: build
@@ -63,9 +64,13 @@ check-version:
 	fi
 	@echo "Release version: $(VERSION)"
 
-# Release target - verify clean tree and tag
-# Run "make build" and commit before releasing
-release: check-version check-git
+# Check that all version sources agree (and match VERSION when provided)
+check-versions:
+	poetry run python scripts/check_versions.py $(VERSION)
+
+# Release target - verify clean tree + version consistency and tag
+# Run "make build" and commit before releasing (or use scripts/release.py to bump + build + commit)
+release: check-version check-git check-versions
 	@echo ""
 	@echo "Creating git tag v$(VERSION)..."
 	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"

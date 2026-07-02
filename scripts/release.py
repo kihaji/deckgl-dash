@@ -5,18 +5,21 @@ Usage:
     python scripts/release.py 0.2.0
     python scripts/release.py 0.2.0 --dry-run  # Preview without making changes
 """
-import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from check_versions import check  # noqa: E402
 
+# package.json and package-lock.json are bumped via `npm version` (the source of truth); these follow.
 FILES_TO_UPDATE = [
     ("pyproject.toml", r'version = "[^"]+"', 'version = "{version}"'),
-    ("package.json", r'"version": "[^"]+"', '"version": "{version}"'),
     ("deckgl_dash/package-info.json", r'"version": "[^"]+"', '"version": "{version}"'),
+    ("DESCRIPTION", r'Version: [^\n]+', 'Version: {version}'),
+    ("Project.toml", r'version = "[^"]+"', 'version = "{version}"'),
 ]
 
 
@@ -32,6 +35,10 @@ def run(cmd: str, dry_run: bool = False) -> bool:
 def bump_version(new_version: str, dry_run: bool = False) -> bool:
     """Update version in all configuration files."""
     print(f"\n📝 Bumping version to {new_version}")
+
+    if not run(f"npm version {new_version} --no-git-tag-version --allow-same-version", dry_run):
+        print("❌ Error: npm version failed")
+        return False
 
     for filepath, pattern, replacement in FILES_TO_UPDATE:
         full_path = PROJECT_ROOT / filepath
@@ -75,7 +82,13 @@ def release(version: str, dry_run: bool = False) -> None:
         print("❌ Error: npm build failed")
         sys.exit(1)
 
-    # Step 3: Git add and commit
+    # Step 3: Verify every version source agrees before committing
+    print("\n🔍 Verifying version consistency")
+    if not dry_run and not check(expected=version):
+        print("❌ Error: version sources disagree — aborting before commit/tag")
+        sys.exit(1)
+
+    # Step 4: Git add and commit
     print("\n📝 Committing changes")
     if not run("git add -A", dry_run):
         sys.exit(1)
@@ -83,7 +96,7 @@ def release(version: str, dry_run: bool = False) -> None:
         print("❌ Error: git commit failed (maybe no changes?)")
         sys.exit(1)
 
-    # Step 4: Create tag
+    # Step 5: Create tag
     print("\n🏷️  Creating tag")
     if not run(f"git tag {tag}", dry_run):
         print("❌ Error: git tag failed (tag may already exist)")
