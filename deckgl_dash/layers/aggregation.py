@@ -8,6 +8,9 @@ from .base import BaseLayer, AccessorValue, ColorValue
 class HeatmapLayer(BaseLayer):
     """Render a heatmap based on point density.
 
+    Note: deck.gl's HeatmapLayer draws an aggregated density surface, so per-feature
+    interaction props like `auto_highlight` do not apply here.
+
     Example:
         >>> HeatmapLayer(
         ...     id='heatmap',
