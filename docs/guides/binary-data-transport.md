@@ -72,8 +72,24 @@ layer = PathLayer(id = 'tracks', use_binary = True, _path_type = 'open', width_m
 Color placement: each segment takes the color of its **leading vertex** — for a path
 of N points (N−1 segments), write segment *i*'s color at vertex *i*; the final
 vertex's color is unused. `_path_type = 'open'` (or `'loop'`) is required so deck.gl
-skips path normalization, which binary data cannot go through. Direction arrows
-(`show_direction=True`) are not yet supported on binary paths (issue #81).
+skips path normalization, which binary data cannot go through.
+
+### Direction arrows on binary paths
+
+`show_direction = True` works with binary data — the composite reads paths, colors,
+and time-filter values straight from the packed attributes (arrows inherit each
+segment's leading-vertex color, like the line):
+
+```python
+layer = PathLayer(id = 'tracks', use_binary = True, show_direction = True,
+                  _path_type = 'open', arrow_spacing = 80, width_min_pixels = 3,
+                  data = {'getPath': verts_f32, 'getColor': colors_u8,
+                          'getFilterValue': fv_f32,        # optional: per-vertex; arrows use each path's first value
+                          'startIndices': starts_u32})
+```
+
+Only `multi_color = True` remains incompatible with binary data (and unnecessary —
+per-vertex colors are native); it raises with the pattern above.
 
 ## Picks and tooltips on binary layers
 
