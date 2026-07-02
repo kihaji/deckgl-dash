@@ -437,3 +437,32 @@ class TestFillExtrusionLayer:
         assert d['paint']['fill-extrusion-height'] == ['get', 'height']
         assert d['paint']['fill-extrusion-base'] == ['get', 'min_height']
         assert d['paint']['fill-extrusion-opacity'] == 0.6
+
+
+class TestPromoteId:
+    """promote_id is the canonical spelling; promoteId is a deprecated alias (issue #31)."""
+
+    def test_vector_promote_id(self):
+        src = VectorSource(tiles = ['https://t/{z}/{x}/{y}.pbf'], promote_id = 'fid')
+        assert src.to_dict()['promoteId'] == 'fid'
+
+    def test_geojson_promote_id(self):
+        src = GeoJSONSource(data = {'type': 'FeatureCollection', 'features': []}, promote_id = 'fid')
+        assert src.to_dict()['promoteId'] == 'fid'
+
+    def test_promoteId_alias_warns_and_works(self):
+        with pytest.warns(DeprecationWarning, match = 'promote_id'):
+            src = VectorSource(tiles = ['https://t/{z}/{x}/{y}.pbf'], promoteId = 'fid')
+        assert src.to_dict()['promoteId'] == 'fid'
+        with pytest.warns(DeprecationWarning, match = 'promote_id'):
+            gsrc = GeoJSONSource(data = {'type': 'FeatureCollection', 'features': []}, promoteId = 'fid')
+        assert gsrc.to_dict()['promoteId'] == 'fid'
+
+    def test_promote_id_wins_over_alias(self):
+        with pytest.warns(DeprecationWarning):
+            src = VectorSource(tiles = ['https://t/{z}/{x}/{y}.pbf'], promote_id = 'new', promoteId = 'old')
+        assert src.to_dict()['promoteId'] == 'new'
+
+    def test_promoteId_attribute_alias(self):
+        src = VectorSource(tiles = ['https://t/{z}/{x}/{y}.pbf'], promote_id = 'fid')
+        assert src.promoteId == 'fid'
