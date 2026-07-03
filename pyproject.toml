@@ -6,6 +6,7 @@ authors = ["Scott"]
 readme = "README.md"
 license = "MIT"
 packages = [{include = "deckgl_dash"}]
+exclude = ["deckgl_dash/*.map"]  # 10 MB source map stays in git for dev, out of the wheel
 classifiers = [
     "Framework :: Dash",
     "Programming Language :: Python :: 3",
