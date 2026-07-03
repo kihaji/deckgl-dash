@@ -119,10 +119,12 @@ class TestGeoJsonLayer:
         assert d['pickable'] is True
         assert d['opacity'] == 0.8
 
-    def test_extra_kwargs(self):
-        layer = GeoJsonLayer(id = 'test', data = [], custom_prop = 'value')
-        d = layer.to_dict()
-        assert d['customProp'] == 'value'
+    def test_extra_kwargs_require_unsafe_props(self):
+        # Unknown props raise by default (see TestPropValidation); _unsafe_props restores passthrough
+        with pytest.raises(TypeError, match = 'custom_prop'):
+            GeoJsonLayer(id = 'test', data = [], custom_prop = 'value')
+        layer = GeoJsonLayer(id = 'test', data = [], custom_prop = 'value', _unsafe_props = True)
+        assert layer.to_dict()['customProp'] == 'value'
 
     def test_repr(self):
         layer = GeoJsonLayer(id = 'test', data = 'url', pickable = True)
@@ -452,3 +454,31 @@ class TestLoadOptions:
         assert d['loadOptions']['fetch']['credentials'] == 'include'
         assert d['loadOptions']['fetch']['headers']['X-Custom'] == 'value'
         assert d['loadOptions']['fetch']['mode'] == 'cors'
+
+
+class TestPropValidation:
+    """Unknown/misspelled props raise with 'did you mean' suggestions (issue #37)."""
+
+    def test_misspelled_prop_suggests_correction(self):
+        with pytest.raises(TypeError) as exc:
+            ScatterplotLayer('s', [], get_fil_color = '#f00')
+        assert 'get_fill_color' in str(exc.value)
+        assert 'get_fil_color' in str(exc.value)
+
+    def test_unsafe_props_restores_passthrough(self):
+        layer = ScatterplotLayer('s', [], get_fil_color = '#f00', _unsafe_props = True)
+        assert layer.to_dict()['getFilColor'] == '#f00'
+
+    def test_universal_deckgl_props_allowed(self):
+        d = ArcLayer(id = 'a', data = [], extensions = ['DataFilterExtension'], get_filter_value = '@@=t',
+                     update_triggers = {'getSourceColor': [1]}).to_dict()
+        assert d['extensions'] == ['DataFilterExtension']
+        assert d['getFilterValue'] == '@@=t'
+
+    def test_no_suggestion_for_garbage(self):
+        with pytest.raises(TypeError, match = 'zzz_nonsense'):
+            ScatterplotLayer('s', [], zzz_nonsense = 1)
+
+    def test_valid_props_unaffected(self):
+        d = ScatterplotLayer('s', [], get_radius = 4, radius_min_pixels = 1).to_dict()
+        assert d['getRadius'] == 4

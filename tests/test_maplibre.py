@@ -1,4 +1,6 @@
 """Unit tests for deckgl-dash MapLibre helpers."""
+import pytest
+
 from deckgl_dash.maplibre import (
     MapLibreConfig, MapLibreStyle,
     RasterSource, VectorSource, GeoJSONSource,
