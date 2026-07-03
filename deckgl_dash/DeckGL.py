@@ -54,12 +54,12 @@ Keyword arguments:
     an EditableGeoJsonLayer is added on top of all other layers.
     Shape: - mode: string - Drawing mode ('draw_line', 'draw_polygon',
     'draw_circle',   'draw_rectangle', 'draw_square', 'draw_point',
-    'view', 'modify', 'translate') - selectedFeatureIndexes: number[]
-    - Indexes of features selected for editing - style: object - Style
-    overrides for the editable layer   - fillColor: [r,g,b,a] - Fill
-    color for drawn features   - lineColor: [r,g,b,a] - Line/stroke
-    color   - lineWidth: number - Line width in pixels   -
-    tentativeFillColor: [r,g,b,a] - Fill color while drawing   -
+    'view', 'modify', 'translate', 'delete') - selectedFeatureIndexes:
+    number[] - Indexes of features selected for editing - style:
+    object - Style overrides for the editable layer   - fillColor:
+    [r,g,b,a] - Fill color for drawn features   - lineColor: [r,g,b,a]
+    - Line/stroke color   - lineWidth: number - Line width in pixels
+    - tentativeFillColor: [r,g,b,a] - Fill color while drawing   -
     tentativeLineColor: [r,g,b,a] - Line color while drawing   -
     editHandlePointColor: [r,g,b,a] - Color of vertex edit handles.
 
@@ -155,9 +155,9 @@ Keyword arguments:
     style spec (required) - sources: object - Additional sources {id:
     sourceSpec} - mapLayers: array - Additional MapLibre layers -
     interleaved: bool - Enable deck.gl layer interleaving (default:
-    True) - attributionControl: bool - Show attribution control
-    (default: True) - mapOptions: object - Additional MapLibre Map
-    options.
+    False; deck.gl renders on top of MapLibre) - attributionControl:
+    bool - Show attribution control (default: True) - mapOptions:
+    object - Additional MapLibre Map options.
 
     `maplibreConfig` is a dict with keys:
 

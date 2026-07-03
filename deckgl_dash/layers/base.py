@@ -1,7 +1,6 @@
 """Base layer class for dash-deckgl Python layer helpers."""
 from __future__ import annotations
-import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 # Type aliases for color values
@@ -37,9 +36,7 @@ def _parse_hex_color(hex_str: str) -> List[int]:
     if not hex_str.startswith('#'):
         raise ValueError(f"Hex color must start with '#', got '{hex_str}'")
     hex_str = hex_str[1:]
-    if len(hex_str) == 3:  # #RGB -> #RRGGBB
-        hex_str = ''.join(c * 2 for c in hex_str)
-    elif len(hex_str) == 4:  # #RGBA -> #RRGGBBAA
+    if len(hex_str) == 3 or len(hex_str) == 4:  # #RGB -> #RRGGBB
         hex_str = ''.join(c * 2 for c in hex_str)
     if len(hex_str) == 6:
         return [int(hex_str[i:i+2], 16) for i in (0, 2, 4)]
@@ -59,12 +56,15 @@ def is_scale_accessor(value: Any) -> bool:
 
 
 def to_camel_case(snake_str: str) -> str:
-    """Convert snake_case to camelCase. Handles 'get_' prefix specially."""
-    components = snake_str.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
+    """Convert snake_case to camelCase, preserving leading underscores (deck.gl experimental props like `_pathType`)."""
+    stripped = snake_str.lstrip('_')
+    prefix = snake_str[:len(snake_str) - len(stripped)]
+    components = stripped.split('_')
+    return prefix + components[0] + ''.join(x.title() for x in components[1:])
 
 
-class BaseLayer(ABC):
+# Intentionally an ABC with no abstract members: it exists only to be subclassed
+class BaseLayer(ABC):  # noqa: B024
     """Abstract base class for all deck.gl layer helpers.
 
     Provides:
@@ -116,6 +116,22 @@ class BaseLayer(ABC):
         """
         result: Dict[str, Any] = {'@@type': self._layer_type, 'id': self._id}
         result.update(self._props)
+        # Opt-in binary transport: data must be a dict of numpy arrays keyed by accessor
+        # name (optionally with 'startIndices' and 'tooltips'); packed into one base64
+        # buffer the JS side rebuilds as native deck.gl binary attributes.
+        if result.pop('useBinary', False):
+            data = result.get('data')
+            if isinstance(data, dict) and '@@binary' not in data:
+                from ..binary import binary_data
+                raw = dict(data)
+                tooltips = raw.pop('tooltips', None)
+                start_indices = raw.pop('startIndices', None)
+                if not raw:
+                    raise ValueError('use_binary=True requires data to contain at least one accessor array')
+                first = next(iter(raw.values()))
+                first_arr = first[0] if isinstance(first, tuple) else first
+                length = len(start_indices) if start_indices is not None else len(first_arr)
+                result['data'] = binary_data(length, raw, start_indices = start_indices, tooltips = tooltips)
         if 'getFilterValue' in result and 'extensions' not in result:
             result['extensions'] = ['DataFilterExtension']
         return result

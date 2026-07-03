@@ -11,6 +11,10 @@ Direct deck.gl wrapper for Plotly Dash - high-performance WebGL-powered visualiz
 pip install deckgl-dash
 ```
 
+Requires Python >= 3.11 and Dash >= 3.0 (Dash 3.x and 4.x are both supported and tested).
+Installing from a **wheel** (the normal `pip install`) has no other requirements; building from the
+**sdist** or a git checkout additionally needs Node.js 20+ (the deck.gl bundle is compiled during the build).
+
 ## Quick Start
 
 ```python
@@ -46,6 +50,12 @@ if __name__ == '__main__':
 - **Per-Layer Data Updates**: Update individual layer data without resending all layers via `layer_data` prop
 - **Remote Data Loading**: Load data directly from external servers in the browser with `load_options`, including client certificate (mTLS) support
 - **Data-driven Styling**: Built-in color scales powered by chroma.js
+
+### Accessors and security
+
+Layer props accept `@@=` accessor strings (e.g. `get_fill_color='@@=properties.color'`) that are evaluated per-datum in the browser.
+
+> **Security note:** `@@=` expressions are compiled to JavaScript with `new Function` and run in the browser, in the same trust domain as your app code. Only pass accessor strings that you, the app author, wrote. **Never build an `@@=` accessor from end-user input** (form fields, URL params, uploaded content) — that would be equivalent to letting users inject script into your page.
 
 ## MapLibre GL JS Integration
 
