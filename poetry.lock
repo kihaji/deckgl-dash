@@ -2070,4 +2070,4 @@ test = ["h3"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "9f882570ff447fd13b83f88bc474c31f90d6f16ab9e3fa5eb81b9bb29ade145f"
+content-hash = "bd4ef789ca909cf6c28a0da7c9697b7e22f916d25b55f162bd3b0f813c4ebe17"
