@@ -85,3 +85,40 @@ class TestUseBinaryFlag:
     def test_empty_data_dict_raises(self):
         with pytest.raises(ValueError, match = 'at least one accessor'):
             ScatterplotLayer(id = 'pts', use_binary = True, data = {}).to_dict()
+
+
+class TestIncompatibleBinaryCombos:
+    """multi_color / show_direction require JSON rows; binary data must raise clearly (issue #79)."""
+
+    def _binary_path_data(self):
+        return {'getPath': np.zeros((6, 2), dtype = np.float32), 'startIndices': np.array([0, 3], dtype = np.uint32)}
+
+    def test_multi_color_with_use_binary_raises(self):
+        from deckgl_dash.layers import PathLayer
+        layer = PathLayer(id = 'p', use_binary = True, multi_color = True, data = self._binary_path_data())
+        with pytest.raises(ValueError, match = 'multi_color'):
+            layer.to_dict()
+
+    def test_show_direction_with_use_binary_raises(self):
+        from deckgl_dash.layers import PathLayer
+        layer = PathLayer(id = 'p', use_binary = True, show_direction = True, data = self._binary_path_data())
+        with pytest.raises(ValueError, match = 'show_direction'):
+            layer.to_dict()
+
+    def test_prepacked_block_also_guarded(self):
+        from deckgl_dash.layers import PathLayer
+        block = binary_data(2, {'getPath': np.zeros((6, 2), dtype = np.float32)},
+                            start_indices = np.array([0, 3], dtype = np.uint32))
+        with pytest.raises(ValueError, match = 'PathLayer with one color PER VERTEX'):
+            PathLayer(id = 'p', multi_color = True, data = block).to_dict()
+
+    def test_stock_pathlayer_binary_still_fine(self):
+        from deckgl_dash.layers import PathLayer
+        d = PathLayer(id = 'p', use_binary = True, _path_type = 'open', data = self._binary_path_data()).to_dict()
+        assert d['@@type'] == 'PathLayer'
+        assert is_binary_data(d['data'])
+
+    def test_multi_color_json_unaffected(self):
+        from deckgl_dash.layers import PathLayer
+        d = PathLayer(id = 'p', multi_color = True, data = [], get_path = '@@=path').to_dict()
+        assert d['@@type'] == 'MultiColorPathLayer'
