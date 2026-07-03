@@ -47,6 +47,12 @@ if __name__ == '__main__':
 - **Remote Data Loading**: Load data directly from external servers in the browser with `load_options`, including client certificate (mTLS) support
 - **Data-driven Styling**: Built-in color scales powered by chroma.js
 
+### Accessors and security
+
+Layer props accept `@@=` accessor strings (e.g. `get_fill_color='@@=properties.color'`) that are evaluated per-datum in the browser.
+
+> **Security note:** `@@=` expressions are compiled to JavaScript with `new Function` and run in the browser, in the same trust domain as your app code. Only pass accessor strings that you, the app author, wrote. **Never build an `@@=` accessor from end-user input** (form fields, URL params, uploaded content) — that would be equivalent to letting users inject script into your page.
+
 ## MapLibre GL JS Integration
 
 Use MapLibre GL JS as the basemap renderer with deck.gl layers as overlays. This gives you access to vector tile basemaps (CARTO, OpenFreeMap, MapTiler) with full styling control.

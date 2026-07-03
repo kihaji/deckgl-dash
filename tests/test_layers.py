@@ -70,6 +70,12 @@ class TestToCamelCase:
     def test_already_camel(self):
         assert to_camel_case('fillColor') == 'fillColor'
 
+    def test_leading_underscore_preserved(self):
+        assert to_camel_case('_path_type') == '_pathType'
+
+    def test_leading_underscore_single_word(self):
+        assert to_camel_case('_subdivisions') == '_subdivisions'
+
 
 class TestGeoJsonLayer:
     """Tests for GeoJsonLayer."""
@@ -156,6 +162,10 @@ class TestPathLayer:
     def test_default_type_without_multi_color(self):
         layer = PathLayer(id = 'path', data = [], get_path = '@@=path')
         assert layer.to_dict()['@@type'] == 'PathLayer'
+
+    def test_path_type_prop_keeps_leading_underscore(self):
+        layer = PathLayer(id = 'path', data = [], _path_type = 'loop')
+        assert layer.to_dict()['_pathType'] == 'loop'
 
     def test_multi_color_changes_type(self):
         layer = PathLayer(id = 'track', data = [], get_path = '@@=path', get_color = '@@=segmentColors', multi_color = True)
