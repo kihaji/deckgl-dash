@@ -128,7 +128,6 @@ const DeckGL = ({
     maplibreConfig = null,
     drawingConfig = null,
     drawingFeatures = null,
-    drawingEvent = null,
     timeFilter = null,
     setProps,
 }) => {
@@ -137,7 +136,7 @@ const DeckGL = ({
     const layersChanged = prevLayersRef.current !== layers;
     prevLayersRef.current = layers;
 
-    debugLog('RENDER', { id, layersCount: layers?.length, hasMaplibreConfig: !!maplibreConfig, controlledViewState, layersChanged });
+    debugLog('RENDER', { id, layersCount: layers?.length, hasMaplibreConfig: Boolean(maplibreConfig), controlledViewState, layersChanged });
     // Refs for MapLibre mode
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
@@ -151,7 +150,7 @@ const DeckGL = ({
 
     // Internal view state for uncontrolled mode
     const [internalViewState, setInternalViewState] = useState(initialViewState);
-    const [mapStyleLoaded, setMapStyleLoaded] = useState(false);
+    const [, setMapStyleLoaded] = useState(false);
 
     // Use controlled view state if provided, otherwise use internal
     const currentViewState = controlledViewState || internalViewState;
@@ -329,7 +328,7 @@ const DeckGL = ({
     // Run the rAF loop only while playing; stop on pause/unmount (resets dt so resume
     // does not jump).
     useEffect(() => {
-        const playing = !!(timeFilter && timeFilter.playing);
+        const playing = Boolean(timeFilter && timeFilter.playing);
         if (playing && rafRef.current == null) {
             lastFrameTsRef.current = null;
             rafRef.current = requestAnimationFrame(tick);
@@ -388,7 +387,7 @@ const DeckGL = ({
     }, [controlledViewState, enableEvents, setProps]);
 
     // Click handler
-    const handleClick = useCallback((info, event) => {
+    const handleClick = useCallback((info) => {
         if (!isEventEnabled('click', enableEvents) || !setProps) {
             return;
         }
@@ -620,7 +619,7 @@ const DeckGL = ({
     // Update overlay layers when deck.gl layers change
     // Note: We intentionally exclude callback functions from deps - they use refs internally
     useEffect(() => {
-        debugLog('useEffect: overlay setProps', { hasOverlay: !!overlayRef.current, layersCount: deckLayers?.length });
+        debugLog('useEffect: overlay setProps', { hasOverlay: Boolean(overlayRef.current), layersCount: deckLayers?.length });
         if (overlayRef.current) {
             debugTime('[DeckGL] overlay.setProps');
             // Apply the active time-filter window so new base layers render filtered.
@@ -635,12 +634,11 @@ const DeckGL = ({
             });
             debugTimeEnd('[DeckGL] overlay.setProps');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allLayers]);
 
     // Sync controlled viewState to MapLibre map (for programmatic control)
     useEffect(() => {
-        debugLog('useEffect: controlledViewState sync', { hasMap: !!mapRef.current, controlledViewState });
+        debugLog('useEffect: controlledViewState sync', { hasMap: Boolean(mapRef.current), controlledViewState });
         if (mapRef.current && controlledViewState) {
             isUpdatingViewRef.current = true;
             mapRef.current.jumpTo({
@@ -766,7 +764,7 @@ function normalizePickInfo(info) {
     if (!info) {
         return null;
     }
-    const picked = !!info.picked;
+    const picked = Boolean(info.picked);
     // Serialize the object only when a feature was picked
     const serializedObject = picked ? serializeObject(info.object) : null;
     const properties = picked ? (serializedObject?.properties || null) : null;

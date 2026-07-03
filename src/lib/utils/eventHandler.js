@@ -12,7 +12,7 @@ export function normalizePickInfo(info) {
     if (!info) {
         return null;
     }
-    const picked = !!info.picked;
+    const picked = Boolean(info.picked);
     const normalized = {
         // Basic pick info
         picked,
