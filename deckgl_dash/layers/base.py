@@ -56,9 +56,11 @@ def is_scale_accessor(value: Any) -> bool:
 
 
 def to_camel_case(snake_str: str) -> str:
-    """Convert snake_case to camelCase. Handles 'get_' prefix specially."""
-    components = snake_str.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
+    """Convert snake_case to camelCase, preserving leading underscores (deck.gl experimental props like `_pathType`)."""
+    stripped = snake_str.lstrip('_')
+    prefix = snake_str[:len(snake_str) - len(stripped)]
+    components = stripped.split('_')
+    return prefix + components[0] + ''.join(x.title() for x in components[1:])
 
 
 # Intentionally an ABC with no abstract members: it exists only to be subclassed
