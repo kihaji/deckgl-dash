@@ -336,18 +336,16 @@ class PathLayer(BaseLayer):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        if self._show_direction or self._multi_color:
+        if self._multi_color and not self._show_direction:
             from ..binary import is_binary_data
             if is_binary_data(result.get('data')):
-                flag = 'show_direction' if self._show_direction else 'multi_color'
                 raise ValueError(
-                    f"{flag}=True is incompatible with binary data: the custom path layers iterate JSON rows, "
-                    "which a binary block does not have. For per-segment colors with binary data, use the stock "
-                    "PathLayer with one color PER VERTEX and _path_type='open':\n"
+                    "multi_color=True is unnecessary with binary data and not supported: the stock PathLayer "
+                    "consumes per-vertex colors natively. Drop multi_color and provide one color PER VERTEX "
+                    "with _path_type='open':\n"
                     "    PathLayer(id, use_binary = True, _path_type = 'open',\n"
                     "              data = {'getPath': verts, 'getColor': per_vertex_colors, 'startIndices': starts})\n"
-                    "See docs/guides/binary-data-transport.md. Direction arrows are not yet supported on binary "
-                    "paths (https://github.com/kihaji/deckgl-dash/issues/81)."
+                    "See docs/guides/binary-data-transport.md. (show_direction=True works with binary data.)"
                 )
         if self._show_direction:
             # Composite that draws the line + arrows; it picks its line sublayer via multiColor.

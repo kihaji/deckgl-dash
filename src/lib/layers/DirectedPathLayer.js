@@ -37,6 +37,11 @@ const ARROW_MAPPING = {
     arrow: { x: 0, y: 0, width: 64, height: 64, anchorX: 32, anchorY: 32, mask: true },
 };
 
+/** deck.gl-native binary path data: {length, attributes: {getPath, ...}, startIndices?} */
+function isBinaryPathData(data) {
+    return Boolean(data && !Array.isArray(data) && data.attributes && typeof data.length === 'number');
+}
+
 export default class DirectedPathLayer extends CompositeLayer {
     // Recompute markers on any change, including viewport changes (default
     // shouldUpdateState ignores viewport). The heavy recompute is gated in updateState.
@@ -78,7 +83,10 @@ export default class DirectedPathLayer extends CompositeLayer {
         if (!data || !viewport || !viewport.projectFlat) {
             return null;
         }
-        const items = Array.isArray(data) ? data : (data.length !== undefined ? Array.from(data) : []);
+        if (isBinaryPathData(data)) {
+            return this._buildPathCacheBinary(data, viewport);
+        }
+        const items = Array.isArray(data) ? data : [];
         const resolvePath = typeof getPath === 'function' ? getPath : (o) => o.path;
         const resolveColor = typeof getColor === 'function' ? getColor : () => getColor;
         const resolveFilter = typeof getFilterValue === 'function' ? getFilterValue : null;
@@ -90,11 +98,14 @@ export default class DirectedPathLayer extends CompositeLayer {
                 continue;
             }
             const n = path.length;
+            const lngLat = new Float64Array(n * 2);
             const common = new Float64Array(n * 2);
             const cum = new Float64Array(n);          // cumulative common-space length at each vertex
             const segAngle = new Float32Array(n - 1); // CCW degrees at bearing 0
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             for (let i = 0; i < n; i++) {
+                lngLat[i * 2] = path[i][0];
+                lngLat[i * 2 + 1] = path[i][1];
                 const [cx, cy] = viewport.projectFlat([path[i][0], path[i][1]]);
                 common[i * 2] = cx;
                 common[i * 2 + 1] = cy;
@@ -116,14 +127,94 @@ export default class DirectedPathLayer extends CompositeLayer {
             const perSegment = multiColor && Array.isArray(colorVal) && Array.isArray(colorVal[0]);
             const singleColor = Array.isArray(colorVal) && Array.isArray(colorVal[0]) ? colorVal[0] : colorVal;
             cache.push({
-                path, common, cum, segAngle,
+                lngLat, common, cum, segAngle,
                 bbox: [minX, minY, maxX, maxY],
                 colors: arrowColor ? null : (perSegment ? colorVal : null),
+                colorAttr: null,
                 singleColor: arrowColor || singleColor || [0, 0, 0, 255],
                 filterValue: resolveFilter ? resolveFilter(object) : 0,
             });
         }
         return cache;
+    }
+
+    /**
+     * Cache builder for deck.gl-native binary path data
+     * ({length, attributes: {getPath, getColor?, getFilterValue?}, startIndices}).
+     * Colors follow the stock-PathLayer binary convention: one per VERTEX, each
+     * segment taking its leading vertex's color. The per-path filter value is the
+     * first vertex's getFilterValue entry.
+     */
+    _buildPathCacheBinary(data, viewport) {
+        const { arrowColor } = this.props;
+        const pathAttr = data.attributes.getPath;
+        if (!pathAttr || !pathAttr.value) {
+            return null;
+        }
+        const posSize = pathAttr.size || 2;
+        const verts = pathAttr.value;
+        const totalVerts = verts.length / posSize;
+        const si = data.startIndices || new Uint32Array([0]);
+        const nPaths = data.startIndices ? data.length : 1;
+        const colorAttrRaw = !arrowColor && data.attributes.getColor ? data.attributes.getColor : null;
+        const fvAttr = data.attributes.getFilterValue || null;
+
+        const cache = [];
+        for (let p = 0; p < nPaths; p++) {
+            const start = si[p];
+            const end = p + 1 < nPaths ? si[p + 1] : totalVerts;
+            const n = end - start;
+            if (n < 2) {
+                continue;
+            }
+            const lngLat = new Float64Array(n * 2);
+            const common = new Float64Array(n * 2);
+            const cum = new Float64Array(n);
+            const segAngle = new Float32Array(n - 1);
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (let i = 0; i < n; i++) {
+                const lng = verts[(start + i) * posSize];
+                const lat = verts[(start + i) * posSize + 1];
+                lngLat[i * 2] = lng;
+                lngLat[i * 2 + 1] = lat;
+                const [cx, cy] = viewport.projectFlat([lng, lat]);
+                common[i * 2] = cx;
+                common[i * 2 + 1] = cy;
+                if (cx < minX) minX = cx;
+                if (cy < minY) minY = cy;
+                if (cx > maxX) maxX = cx;
+                if (cy > maxY) maxY = cy;
+                if (i > 0) {
+                    const dx = cx - common[(i - 1) * 2];
+                    const dy = cy - common[(i - 1) * 2 + 1];
+                    cum[i] = cum[i - 1] + Math.hypot(dx, dy);
+                    segAngle[i - 1] = Math.atan2(dy, dx) * 180 / Math.PI;
+                }
+            }
+            cache.push({
+                lngLat, common, cum, segAngle,
+                bbox: [minX, minY, maxX, maxY],
+                colors: null,
+                // zero-copy view info: segment s colors come from vertex (start + s)
+                colorAttr: colorAttrRaw ? { value: colorAttrRaw.value, size: colorAttrRaw.size || 4, base: start } : null,
+                singleColor: arrowColor || [0, 0, 0, 255],
+                filterValue: fvAttr ? fvAttr.value[start] : 0,
+            });
+        }
+        return cache;
+    }
+
+    /** Resolve the arrow color for segment segIndex of cached path p. */
+    _markerColor(p, segIndex) {
+        if (p.colorAttr) {
+            const { value, size, base } = p.colorAttr;
+            const o = (base + segIndex) * size;
+            return [value[o], value[o + 1], value[o + 2], size > 3 ? value[o + 3] : 255];
+        }
+        if (p.colors) {
+            return p.colors[Math.min(segIndex, p.colors.length - 1)];
+        }
+        return p.singleColor;
     }
 
     _computeMarkers() {
@@ -187,7 +278,7 @@ export default class DirectedPathLayer extends CompositeLayer {
                 const [lng, lat] = viewport.unprojectFlat([x, y]);
                 positions.push(lng, lat);
                 angles.push(p.segAngle[segIndex]);
-                const c = p.colors ? p.colors[Math.min(segIndex, p.colors.length - 1)] : p.singleColor;
+                const c = this._markerColor(p, segIndex);
                 colors.push(c[0], c[1], c[2], c.length > 3 && !isNaN(c[3]) ? c[3] : 255);
                 filterValues.push(p.filterValue);
             };
@@ -219,8 +310,11 @@ export default class DirectedPathLayer extends CompositeLayer {
         const filterValues = [];
 
         for (const p of pathCache) {
-            const path = p.path;
-            const screen = path.map((pt) => viewport.project([pt[0], pt[1]]));
+            const nPts = p.lngLat.length / 2;
+            const screen = new Array(nPts);
+            for (let i = 0; i < nPts; i++) {
+                screen[i] = viewport.project([p.lngLat[i * 2], p.lngLat[i * 2 + 1]]);
+            }
             let walked = 0;
             let nextAt = spacing / 2;
             let placedAny = false;
@@ -228,7 +322,7 @@ export default class DirectedPathLayer extends CompositeLayer {
                 const lngLat = viewport.unproject([sx, sy]);
                 positions.push(lngLat[0], lngLat[1]);
                 angles.push(angle);
-                const c = p.colors ? p.colors[Math.min(segIndex, p.colors.length - 1)] : p.singleColor;
+                const c = this._markerColor(p, segIndex);
                 colors.push(c[0], c[1], c[2], c.length > 3 && !isNaN(c[3]) ? c[3] : 255);
                 filterValues.push(p.filterValue);
             };
@@ -252,7 +346,7 @@ export default class DirectedPathLayer extends CompositeLayer {
                 walked += segLen;
             }
             if (!placedAny) {
-                const i = Math.max(1, Math.floor(path.length / 2));
+                const i = Math.max(1, Math.floor(nPts / 2));
                 const [x0, y0] = screen[i - 1];
                 const [x1, y1] = screen[i];
                 const angle = -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
@@ -288,10 +382,14 @@ export default class DirectedPathLayer extends CompositeLayer {
         // correct for the LINE (its data is the path objects), so we let it flow through.
         const hasFilter = typeof getFilterValue === 'function';
 
-        const LineLayer = multiColor ? MultiColorPathLayer : PathLayer;
+        // Binary data: per-vertex colors are native to the stock PathLayer, so the
+        // MultiColorPathLayer subclass (a JSON-rows accessor mechanism) is bypassed.
+        const isBinary = isBinaryPathData(data);
+        const LineLayer = (multiColor && !isBinary) ? MultiColorPathLayer : PathLayer;
         const pathSub = new LineLayer(this.getSubLayerProps({
             id: 'path',
             data,
+            _pathType: this.props._pathType,
             getPath,
             getColor,
             getWidth,
@@ -318,8 +416,10 @@ export default class DirectedPathLayer extends CompositeLayer {
         // The arrow sublayer's data is computed markers (not paths), so the auto-forwarded
         // parent getFilterValue would read a nonexistent field. Override it (AFTER
         // getSubLayerProps, which is where the extension injects the parent's accessor) with
-        // the per-marker filter values, so arrows fade with their line.
-        if (hasFilter && markers.filterValues) {
+        // the per-marker filter values, so arrows fade with their line. Binary paths carry
+        // the filter as a data attribute rather than an accessor prop.
+        const binaryHasFilter = isBinary && Boolean(data.attributes.getFilterValue);
+        if ((hasFilter || binaryHasFilter) && markers.filterValues) {
             arrowProps.data = {
                 length: markers.length,
                 attributes: { ...markers.attributes, getFilterValue: { value: markers.filterValues, size: 1 } },
@@ -346,4 +446,5 @@ DirectedPathLayer.defaultProps = {
     arrowSpacing: { type: 'number', value: 100, min: 1 },
     arrowSize: { type: 'number', value: 18, min: 1 },
     arrowColor: { type: 'color', value: null, optional: true },
+    _pathType: null,  // forwarded to the line sublayer; binary paths should set 'open' or 'loop'
 };

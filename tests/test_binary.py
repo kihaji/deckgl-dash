@@ -99,17 +99,21 @@ class TestIncompatibleBinaryCombos:
         with pytest.raises(ValueError, match = 'multi_color'):
             layer.to_dict()
 
-    def test_show_direction_with_use_binary_raises(self):
+    def test_show_direction_with_use_binary_serializes(self):
+        # Binary direction arrows are supported (issue #85)
         from deckgl_dash.layers import PathLayer
-        layer = PathLayer(id = 'p', use_binary = True, show_direction = True, data = self._binary_path_data())
-        with pytest.raises(ValueError, match = 'show_direction'):
-            layer.to_dict()
+        d = PathLayer(id = 'p', use_binary = True, show_direction = True, _path_type = 'open',
+                      data = self._binary_path_data(), arrow_spacing = 50).to_dict()
+        assert d['@@type'] == 'DirectedPathLayer'
+        assert is_binary_data(d['data'])
+        assert d['_pathType'] == 'open'
+        assert d['arrowSpacing'] == 50
 
     def test_prepacked_block_also_guarded(self):
         from deckgl_dash.layers import PathLayer
         block = binary_data(2, {'getPath': np.zeros((6, 2), dtype = np.float32)},
                             start_indices = np.array([0, 3], dtype = np.uint32))
-        with pytest.raises(ValueError, match = 'PathLayer with one color PER VERTEX'):
+        with pytest.raises(ValueError, match = 'per-vertex colors natively'):
             PathLayer(id = 'p', multi_color = True, data = block).to_dict()
 
     def test_stock_pathlayer_binary_still_fine(self):

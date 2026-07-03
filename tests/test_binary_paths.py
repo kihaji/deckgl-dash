@@ -39,3 +39,28 @@ def test_binary_pathlayer_per_vertex_colors(dash_duo):
     dash_duo.wait_for_element("#map canvas")
     time.sleep(3)
     assert _severe(dash_duo) == []
+
+
+def test_binary_directed_path_arrows(dash_duo):
+    """Direction arrows over binary path data (issue #85), with a GPU time filter attached."""
+    verts = np.array([[-122.45, 37.77], [-122.43, 37.78], [-122.41, 37.77], [-122.38, 37.79],
+                      [-122.44, 37.74], [-122.42, 37.73], [-122.40, 37.74]], dtype = np.float32)
+    colors = np.tile(np.array([30, 110, 230, 255], dtype = np.uint8), (7, 1))
+    fv = np.array([1, 1, 1, 1, 2, 2, 2], dtype = np.float32)
+    starts = np.array([0, 4], dtype = np.uint32)
+    block = binary_data(2, {"getPath": verts, "getColor": colors, "getFilterValue": fv}, start_indices = starts)
+
+    app = Dash(__name__)
+    app.layout = html.Div([DeckGL(
+        id = "map",
+        initial_view_state = {"longitude": -122.42, "latitude": 37.76, "zoom": 11.5},
+        style = {"width": "500px", "height": "400px", "position": "relative"},
+        layers = [{"@@type": "DirectedPathLayer", "id": "tracks", "widthMinPixels": 4,
+                   "_pathType": "open", "arrowSpacing": 60, "arrowSize": 16,
+                   "data": block, "extensions": ["DataFilterExtension"]}],
+        time_filter = {"domain": [0, 3], "window": 3, "current": 3, "playing": False},
+    )])
+    dash_duo.start_server(app)
+    dash_duo.wait_for_element("#map canvas")
+    time.sleep(3)
+    assert _severe(dash_duo) == []

@@ -101,3 +101,84 @@ describe('DirectedPathLayer marker computation (issue #81)', () => {
         expect(markers.attributes.getPosition.value).toBeInstanceOf(Float64Array);
     });
 });
+
+
+describe('binary path data (issue #85)', () => {
+    const viewport = new WebMercatorViewport({
+        width: 600, height: 500, longitude: -122.42, latitude: 37.77, zoom: 12, pitch: 0, bearing: 0,
+    });
+    const paths = [PATHS[0].path, PATHS[1].path];
+    const colorsPerVertex = paths.map(p => p.map((_, i) => [40 * i + 10, 20, 200, 255]));
+
+    function jsonHarness() {
+        const h = makeHarness(viewport, {
+            multiColor: true,
+            // JSON rows: per-SEGMENT colors = leading-vertex colors minus the last
+            getColor: (d) => d.colors,
+            getFilterValue: (d) => d.t,
+        });
+        h.props.data = paths.map((p, i) => ({ path: p, colors: colorsPerVertex[i].slice(0, -1), t: i + 5 }));
+        h.state.pathCache = h._buildPathCache();
+        return h;
+    }
+
+    function binaryHarness() {
+        const totalVerts = paths[0].length + paths[1].length;
+        const verts = new Float64Array(totalVerts * 2);
+        const cols = new Uint8Array(totalVerts * 4);
+        const fv = new Float32Array(totalVerts);
+        const starts = new Uint32Array([0, paths[0].length]);
+        let v = 0;
+        paths.forEach((p, pi) => {
+            p.forEach((pt, i) => {
+                verts[v * 2] = pt[0];
+                verts[v * 2 + 1] = pt[1];
+                cols.set(colorsPerVertex[pi][i], v * 4);
+                fv[v] = pi + 5;
+                v++;
+            });
+        });
+        const h = makeHarness(viewport, {});
+        h.props.data = {
+            length: 2,
+            startIndices: starts,
+            attributes: {
+                getPath: { value: verts, size: 2 },
+                getColor: { value: cols, size: 4 },
+                getFilterValue: { value: fv, size: 1 },
+            },
+        };
+        h.state.pathCache = h._buildPathCache();
+        return h;
+    }
+
+    it('produces identical markers from binary and equivalent JSON rows', () => {
+        const mj = jsonHarness()._computeMarkers();
+        const mb = binaryHarness()._computeMarkers();
+        expect(mb.length).toBe(mj.length);
+        for (let i = 0; i < mb.length; i++) {
+            expect(mb.attributes.getPosition.value[i * 2]).toBeCloseTo(mj.attributes.getPosition.value[i * 2], 9);
+            expect(mb.attributes.getAngle.value[i]).toBeCloseTo(mj.attributes.getAngle.value[i], 4);
+            for (let k = 0; k < 4; k++) {
+                expect(mb.attributes.getColor.value[i * 4 + k]).toBe(mj.attributes.getColor.value[i * 4 + k]);
+            }
+            expect(mb.filterValues[i]).toBe(mj.filterValues[i]);
+        }
+    });
+
+    it('binary cache carries per-path filter values from the first vertex', () => {
+        const cache = binaryHarness().state.pathCache;
+        expect(cache[0].filterValue).toBe(5);
+        expect(cache[1].filterValue).toBe(6);
+    });
+
+    it('single-path binary data works without startIndices', () => {
+        const p = PATHS[0].path;
+        const verts = new Float64Array(p.flat());
+        const h = makeHarness(viewport, {});
+        h.props.data = { length: 1, attributes: { getPath: { value: verts, size: 2 } } };
+        h.state.pathCache = h._buildPathCache();
+        expect(h.state.pathCache.length).toBe(1);
+        expect(h._computeMarkers().length).toBeGreaterThan(0);
+    });
+});
