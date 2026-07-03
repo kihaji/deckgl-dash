@@ -28,7 +28,8 @@ def collect_versions() -> dict[str, str]:
     versions["package-lock.json"] = lock.get("version", "<not found>")
     versions['package-lock.json packages[""]'] = lock.get("packages", {}).get("", {}).get("version", "<not found>")
 
-    versions["deckgl_dash/package-info.json"] = json.loads((PROJECT_ROOT / "deckgl_dash" / "package-info.json").read_text()).get("version", "<not found>")
+    pkg_info = json.loads((PROJECT_ROOT / "deckgl_dash" / "package-info.json").read_text())
+    versions["deckgl_dash/package-info.json"] = pkg_info.get("version", "<not found>")
 
     # Generated R/Julia bindings are gitignored, so they only exist locally — skip when absent (e.g. fresh CI checkout)
     if (PROJECT_ROOT / "DESCRIPTION").exists():

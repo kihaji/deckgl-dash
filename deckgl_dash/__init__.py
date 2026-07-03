@@ -54,7 +54,8 @@ from .bounds import compute_bounds
 from .timefilter import compute_time_domain, build_time_filter
 
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter', 'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION', 'compute_bounds', 'compute_time_domain', 'build_time_filter']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter',
+           'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION', 'compute_bounds', 'compute_time_domain', 'build_time_filter']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '

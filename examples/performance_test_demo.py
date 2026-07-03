@@ -17,7 +17,7 @@ import json
 import os
 import random
 from pathlib import Path
-from dash import Dash, html, callback, Output, Input, State, ctx, dcc, no_update, ALL, MATCH, Patch
+from dash import Dash, html, callback, Output, Input, State, dcc, MATCH, Patch
 
 from deckgl_dash import DeckGL, ColorScale, color_range_from_scale
 from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLayer, process_layers
@@ -25,7 +25,7 @@ from deckgl_dash.layers import TileLayer, GeoJsonLayer, HexagonLayer, BitmapLaye
 try:
     import h3  # type: ignore[reportMissingImports]
 except ImportError:
-    raise ImportError("h3 is required for this demo. Install with: pip install h3")
+    raise ImportError("h3 is required for this demo. Install with: pip install h3") from None
 
 # Load image bounds and encode image as base64 data URL
 # Using NASA VIIRS satellite imagery (public domain) of San Francisco Bay Area
@@ -201,13 +201,15 @@ app.layout = html.Div([
         html.Div([
             html.H4("H3 Hexagons (GeoJSON)"),
             html.P("(rebuilds all layers)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
-            *[dcc.Checklist(id = f"toggle-h3-{size // 1000}k", options = [{"label": f" {size // 1000}k hexagons", "value": f"h3-{size // 1000}k"}], value = [], inline = True) for size in LAYER_SIZES],
+            *[dcc.Checklist(id = f"toggle-h3-{size // 1000}k", options = [{"label": f" {size // 1000}k hexagons", "value": f"h3-{size // 1000}k"}],
+                            value = [], inline = True) for size in LAYER_SIZES],
         ], style = {"display": "inline-block", "verticalAlign": "top", "marginRight": "40px"}),
 
         html.Div([
             html.H4("HexagonLayer (Aggregation)"),
             html.P("(independent via layerData)", style = {"fontSize": "0.8em", "color": "#666", "margin": "0"}),
-            *[dcc.Checklist(id = {"type": "toggle-agg", "size": size}, options = [{"label": f" {size // 1000}k points", "value": "visible"}], value = [], inline = True) for size in LAYER_SIZES],
+            *[dcc.Checklist(id = {"type": "toggle-agg", "size": size}, options = [{"label": f" {size // 1000}k points", "value": "visible"}],
+                            value = [], inline = True) for size in LAYER_SIZES],
         ], style = {"display": "inline-block", "verticalAlign": "top", "marginRight": "40px"}),
 
         html.Div([
@@ -217,7 +219,8 @@ app.layout = html.Div([
 
         html.Div([
             html.H4("HexagonLayer Mode"),
-            dcc.RadioItems(id = "toggle-3d", options = [{"label": " 2D", "value": "2d"}, {"label": " 3D", "value": "3d"}], value = "2d", inline = True),
+            dcc.RadioItems(id = "toggle-3d", options = [{"label": " 2D", "value": "2d"}, {"label": " 3D", "value": "3d"}],
+                           value = "2d", inline = True),
         ], style = {"display": "inline-block", "verticalAlign": "top"}),
     ], style = {"marginBottom": "20px", "padding": "10px", "backgroundColor": "#f5f5f5", "borderRadius": "5px"}),
 

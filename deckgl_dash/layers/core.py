@@ -593,7 +593,8 @@ class TextLayer(BaseLayer):
     """
     _layer_type = 'TextLayer'
     _color_props = ('get_color', 'background_color', 'get_background_color')
-    _accessor_props = ('get_position', 'get_text', 'get_size', 'get_color', 'get_angle', 'get_text_anchor', 'get_alignment_baseline', 'get_pixel_offset')
+    _accessor_props = ('get_position', 'get_text', 'get_size', 'get_color', 'get_angle', 'get_text_anchor', 'get_alignment_baseline',
+                       'get_pixel_offset')
 
     def __init__(
         self, id: str, data: Any, *,

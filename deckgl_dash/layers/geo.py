@@ -1,6 +1,6 @@
 """Geo layer helpers for dash-deckgl (from @deck.gl/geo-layers)."""
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional
 
 from .base import BaseLayer, AccessorValue, ColorValue
 

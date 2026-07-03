@@ -11,7 +11,8 @@ import pytest
 from dash import Dash, html, Input, Output
 from deckgl_dash import DeckGL
 
-pytestmark = pytest.mark.skipif(not os.environ.get("DECKGL_BROWSER_TESTS"), reason = "browser test; set DECKGL_BROWSER_TESTS=1 (needs chromedriver + selenium>=4)")
+pytestmark = pytest.mark.skipif(not os.environ.get("DECKGL_BROWSER_TESTS"),
+                                reason = "browser test; set DECKGL_BROWSER_TESTS=1 (needs chromedriver + selenium>=4)")
 
 MAPLIBRE_CONFIG = {"mapStyle": "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"}
 VIEW_STATE = {"longitude": 0, "latitude": 0, "zoom": 2}

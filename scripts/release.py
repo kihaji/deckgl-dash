@@ -105,8 +105,8 @@ def release(version: str, dry_run: bool = False) -> None:
     # Success!
     print(f"\n✅ Release {tag} created successfully!")
     print("\n📤 To publish, run:")
-    print(f"   git push && git push --tags")
-    print(f"\n   This will trigger the GitHub Action to publish to PyPI.")
+    print("   git push && git push --tags")
+    print("\n   This will trigger the GitHub Action to publish to PyPI.")
 
 
 if __name__ == "__main__":

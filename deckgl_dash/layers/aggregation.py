@@ -1,6 +1,6 @@
 """Aggregation layer helpers for dash-deckgl (from @deck.gl/aggregation-layers)."""
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from .base import BaseLayer, AccessorValue, ColorValue
 

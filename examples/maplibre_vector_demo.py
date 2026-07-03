@@ -7,7 +7,6 @@ This example demonstrates:
 - Combining MapLibre vector styling with deck.gl layers
 """
 from dash import Dash, html, callback, Output, Input
-import json
 
 from deckgl_dash import DeckGL
 from deckgl_dash.layers import GeoJsonLayer

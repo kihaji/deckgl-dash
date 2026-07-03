@@ -45,8 +45,11 @@ jobs:
           poetry install
           poetry run pip install "dash[testing]==${{ matrix.dash-version }}"
 
+      - name: Run ruff linter
+        run: poetry run ruff check .
+
       - name: Run Pyright type checker
-        run: poetry run npx pyright deckgl_dash/ examples/
+        run: poetry run npx pyright
 
       - name: Run Python tests with coverage
         run: poetry run pytest tests/ -v --cov=deckgl_dash --cov-report=term-missing
