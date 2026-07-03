@@ -4,6 +4,7 @@
  */
 import { useCallback } from 'react';
 import { isEventEnabled, normalizePickInfo } from '../../utils/eventHandler';
+import { getBinaryTooltips } from '../../utils/layerRegistry';
 
 export function useDeckEvents({ controlledViewState, setInternalViewState, enableEvents, tooltip, setProps }) {
     // View state change handler (for both internal state and Dash callbacks)
@@ -50,7 +51,15 @@ export function useDeckEvents({ controlledViewState, setInternalViewState, enabl
 
     // Tooltip rendering
     const getTooltip = useCallback((info) => {
-        if (!tooltip || !info.picked || !info.object) {
+        if (!tooltip || !info.picked) {
+            return null;
+        }
+        // Binary layers carry no per-item object; use pre-rendered Python-side strings
+        if (!info.object) {
+            const pre = getBinaryTooltips(info.layer?.id);
+            if (pre && typeof info.index === 'number' && pre[info.index] != null) {
+                return String(pre[info.index]);
+            }
             return null;
         }
         // Simple tooltip - just show properties
