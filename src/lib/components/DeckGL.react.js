@@ -27,6 +27,8 @@ const DEFAULT_VIEW_STATE = {
 // Debug flag - set to true to enable performance logging
 const DEBUG_PERF = false;
 const debugLog = DEBUG_PERF ? (...args) => console.log('[DeckGL]', ...args) : () => {};
+const debugTime = DEBUG_PERF ? (label) => console.time(label) : () => {};
+const debugTimeEnd = DEBUG_PERF ? (label) => console.timeEnd(label) : () => {};
 
 /**
  * Reorder layer configs according to a list of layer IDs (bottom to top).
@@ -176,7 +178,7 @@ const DeckGL = ({
         const baseConfigs = layers || [];
         const mergedData = accumulatedLayerDataRef.current;
         debugLog('useMemo: createLayers called', { layersCount: baseConfigs.length, hasLayerData: Object.keys(mergedData).length > 0 });
-        console.time('[DeckGL] createLayers');
+        debugTime('[DeckGL] createLayers');
         let mergedConfigs = baseConfigs;
         if (Object.keys(mergedData).length > 0) {
             mergedConfigs = baseConfigs.map(config => {
@@ -191,7 +193,7 @@ const DeckGL = ({
             mergedConfigs = applyLayerOrder(mergedConfigs, layerOrder);
         }
         const result = createLayers(mergedConfigs, layerOptions);
-        console.timeEnd('[DeckGL] createLayers');
+        debugTimeEnd('[DeckGL] createLayers');
         return result;
     }, [layers, layerData, layerOrder, layerOptions]);
 
@@ -620,7 +622,7 @@ const DeckGL = ({
     useEffect(() => {
         debugLog('useEffect: overlay setProps', { hasOverlay: !!overlayRef.current, layersCount: deckLayers?.length });
         if (overlayRef.current) {
-            console.time('[DeckGL] overlay.setProps');
+            debugTime('[DeckGL] overlay.setProps');
             // Apply the active time-filter window so new base layers render filtered.
             const layersToSet = (timeFilterRef.current && headTimeRef.current != null)
                 ? applyRangeToLayers(allLayers, headTimeRef.current, timeFilterRef.current)
@@ -631,7 +633,7 @@ const DeckGL = ({
                 onHover: isEventEnabled('hover', enableEvents) ? handleHover : undefined,
                 getTooltip: tooltip ? getTooltip : undefined,
             });
-            console.timeEnd('[DeckGL] overlay.setProps');
+            debugTimeEnd('[DeckGL] overlay.setProps');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allLayers]);
@@ -703,6 +705,17 @@ const DeckGL = ({
         });
     }, [fitBounds]);
 
+    // Deck-only mode: compute effective controller with drawing overrides.
+    // Must stay above the MapLibre early return — hooks may not run conditionally.
+    const effectiveController = useMemo(() => {
+        if (controller === false) return false;
+        const base = typeof controller === 'object' ? controller : {};
+        if (isActiveDrawingMode) {
+            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
+        }
+        return controller || true;
+    }, [controller, isActiveDrawingMode, isDragDrawMode]);
+
     // ===========================================
     // Render
     // ===========================================
@@ -721,16 +734,6 @@ const DeckGL = ({
             </div>
         );
     }
-
-    // Standard deck.gl-only mode — compute effective controller with drawing overrides
-    const effectiveController = useMemo(() => {
-        if (controller === false) return false;
-        const base = typeof controller === 'object' ? controller : {};
-        if (isActiveDrawingMode) {
-            return { ...base, doubleClickZoom: false, ...(isDragDrawMode ? { dragPan: false } : {}) };
-        }
-        return controller || true;
-    }, [controller, isActiveDrawingMode, isDragDrawMode]);
 
     // Apply the time-filter window to the rendered layers (cheap clone of target layers
     // only) so React re-renders stay consistent with the rAF loop's imperative updates.
