@@ -343,7 +343,7 @@ DeckGL.propTypes = {
      * - style: string | object - Style URL or inline MapLibre style spec (required)
      * - sources: object - Additional sources {id: sourceSpec}
      * - mapLayers: array - Additional MapLibre layers
-     * - interleaved: bool - Enable deck.gl layer interleaving (default: true)
+     * - interleaved: bool - Enable deck.gl layer interleaving (default: false; deck.gl renders on top of MapLibre)
      * - attributionControl: bool - Show attribution control (default: true)
      * - mapOptions: object - Additional MapLibre Map options
      */
@@ -394,7 +394,7 @@ DeckGL.propTypes = {
      *
      * Shape:
      * - mode: string - Drawing mode ('draw_line', 'draw_polygon', 'draw_circle',
-     *   'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate')
+     *   'draw_rectangle', 'draw_square', 'draw_point', 'view', 'modify', 'translate', 'delete')
      * - selectedFeatureIndexes: number[] - Indexes of features selected for editing
      * - style: object - Style overrides for the editable layer
      *   - fillColor: [r,g,b,a] - Fill color for drawn features
