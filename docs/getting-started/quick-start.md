@@ -4,6 +4,10 @@ deckgl-dash supports two usage modes: **Python helper classes** (recommended) an
 
 ## Your First Map
 
+!!! tip "Choosing a basemap"
+    This page demonstrates the **bare `TileLayer`** basemap path — zero configuration, one raster tile URL. For real basemaps (vector styles, WMS sources, runtime style switching, built-in attribution), use **MapLibre** via `maplibre_config` — see the [MapLibre Integration guide](../guides/maplibre-integration.md).
+
+
 === "Python Helpers"
 
     ```python
