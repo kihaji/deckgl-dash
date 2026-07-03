@@ -40,9 +40,9 @@ clean:
 # Run code quality checks: ruff (lint) + Pyright (types)
 quality:
 	@echo "Running ruff linter..."
-	poetry run ruff check .
+	uv run ruff check .
 	@echo "Running Pyright type checker..."
-	poetry run npx pyright
+	uv run npx pyright
 	@echo ""
 	@echo "Quality check complete."
 
@@ -68,7 +68,7 @@ check-version:
 
 # Check that all version sources agree (and match VERSION when provided)
 check-versions:
-	poetry run python scripts/check_versions.py $(VERSION)
+	uv run python scripts/check_versions.py $(VERSION)
 
 # Release target - verify clean tree + version consistency and tag
 # Run "make build" and commit before releasing (or use scripts/release.py to bump + build + commit)
@@ -87,8 +87,8 @@ release: check-version check-git check-versions
 
 # Serve documentation locally
 docs-serve:
-	poetry run mkdocs serve
+	uv run mkdocs serve
 
 # Build documentation with strict mode (catches broken links/warnings)
 docs-build:
-	poetry run mkdocs build --strict
+	uv run mkdocs build --strict

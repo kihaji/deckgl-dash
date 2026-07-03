@@ -11,7 +11,9 @@ Direct deck.gl wrapper for Plotly Dash - high-performance WebGL-powered visualiz
 pip install deckgl-dash
 ```
 
-Requires Python >= 3.10 and Dash >= 3.0 (Dash 3.x and 4.x are both supported and tested).
+Requires Python >= 3.11 and Dash >= 3.0 (Dash 3.x and 4.x are both supported and tested).
+Installing from a **wheel** (the normal `pip install`) has no other requirements; building from the
+**sdist** or a git checkout additionally needs Node.js 20+ (the deck.gl bundle is compiled during the build).
 
 ## Quick Start
 
