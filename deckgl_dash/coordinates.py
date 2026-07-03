@@ -133,7 +133,7 @@ class CoordinateConverter:
         try:
             from pyproj import Proj  # type: ignore[import-not-found]
         except ImportError:
-            raise ImportError("pyproj is required for UTM conversion. Install with: pip install pyproj")
+            raise ImportError("pyproj is required for UTM conversion. Install with: pip install pyproj") from None
 
         zone_number = _utm_zone_number(self._longitude, self._latitude)
         zone_letter = _utm_zone_letter(self._latitude)
@@ -160,7 +160,7 @@ class CoordinateConverter:
         try:
             import mgrs as mgrs_lib  # type: ignore[import-not-found]
         except ImportError:
-            raise ImportError("mgrs is required for MGRS conversion. Install with: pip install mgrs")
+            raise ImportError("mgrs is required for MGRS conversion. Install with: pip install mgrs") from None
 
         if not 1 <= precision <= 5:
             raise ValueError(f"MGRS precision must be 1-5, got {precision}")

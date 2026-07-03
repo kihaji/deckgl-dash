@@ -52,7 +52,7 @@ def speeds_to_colors(track):
     Returns a list of [r, g, b] colors of length len(track) - 1 (one per segment).
     """
     colors = []
-    for (lon1, lat1, t1), (lon2, lat2, t2) in zip(track, track[1:]):
+    for (lon1, lat1, t1), (lon2, lat2, t2) in zip(track, track[1:], strict = False):
         dt = max(t2 - t1, 1e-6)
         speed = _haversine_m(lon1, lat1, lon2, lat2) / dt
         colors.append(IMPOSSIBLE_COLOR if speed > IMPOSSIBLE_SPEED_MPS else NORMAL_COLOR)

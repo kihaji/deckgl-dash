@@ -4,7 +4,6 @@
 Usage:
     python scripts/bump_version.py 0.2.0
 """
-import json
 import re
 import sys
 from pathlib import Path

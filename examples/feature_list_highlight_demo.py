@@ -18,7 +18,7 @@ Usage:
     python examples/feature_list_highlight_demo.py
 """
 from typing import Any, Dict, List, Optional
-from dash import Dash, html, callback, Output, Input, State, ctx, no_update, ALL
+from dash import Dash, html, callback, Output, Input, State, ctx, ALL
 
 from deckgl_dash import DeckGL
 from deckgl_dash.layers import TileLayer, GeoJsonLayer, PathLayer
@@ -144,10 +144,9 @@ def on_select(_name_clicks, click_info, button_ids):
 
     if isinstance(trig, dict) and trig.get("type") == "feature-name":
         selected_name = _source_for(trig["kind"])[trig["index"]]["name"]
-    elif trig == "map":
-        if click_info and click_info.get("picked"):
-            props = click_info.get("properties") or {}
-            selected_name = props.get("name")
+    elif trig == "map" and click_info and click_info.get("picked"):
+        props = click_info.get("properties") or {}
+        selected_name = props.get("name")
         # else: clicked empty map -> selected_name stays None (clears selection)
 
     layer_data = {"regions": build_regions_fc(selected_name), "routes": build_routes(selected_name)}
