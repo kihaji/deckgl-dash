@@ -11,6 +11,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { isEventEnabled } from '../../utils/eventHandler';
 import { applyRangeToLayers } from '../../utils/timeFilter';
+import { zoomGateKey } from '../../utils/zoomVisibility';
 import { debugLog, debugTime, debugTimeEnd } from '../../utils/debug';
 
 export function useMaplibre({
@@ -30,6 +31,9 @@ export function useMaplibre({
     headTimeRef,
     isDragDrawMode,
     isActiveDrawingMode,
+    zoomGates,
+    mapZoomRef,
+    setMapZoomGateKey,
 }) {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
@@ -38,6 +42,10 @@ export function useMaplibre({
     const maplibreConfigRef = useRef(maplibreConfig);
     maplibreConfigRef.current = maplibreConfig;
     const [, setMapStyleLoaded] = useState(false);
+    // Fresh gates for the per-frame zoom handler without re-subscribing
+    const zoomGatesRef = useRef(zoomGates);
+    zoomGatesRef.current = zoomGates;
+    const lastGateKeyRef = useRef('');
 
     // Ref to track if view change originated from programmatic update (to avoid feedback loops)
     const isUpdatingViewRef = useRef(false);
@@ -76,6 +84,22 @@ export function useMaplibre({
 
         const map = new maplibregl.Map(mapOptions);
         mapRef.current = map;
+        mapZoomRef.current = map.getZoom();
+
+        // Zoom-gated visibility: the zoom event fires every frame, so only bump
+        // React state (which pushes new layers) when a gate's in-range bit flips.
+        map.on('zoom', () => {
+            mapZoomRef.current = map.getZoom();
+            const gates = zoomGatesRef.current;
+            if (!gates || gates.length === 0) {
+                return;
+            }
+            const key = zoomGateKey(gates, mapZoomRef.current);
+            if (key !== lastGateKeyRef.current) {
+                lastGateKeyRef.current = key;
+                setMapZoomGateKey(key);
+            }
+        });
 
         // Create MapboxOverlay for deck.gl layers
         // Default interleaved to false for better performance (deck.gl renders on top of MapLibre)
