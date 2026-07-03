@@ -44,6 +44,9 @@ get_fill_color='@@=properties.color'    # Access nested property
 get_radius='@@=radius'                   # Access top-level property
 ```
 
+> **Security note:** `@@=` expressions are compiled to JavaScript with `new Function` and run in the browser, in the same trust domain as your app code. Only pass accessor strings that you, the app author, wrote. **Never build an `@@=` accessor from end-user input** (form fields, URL params, uploaded content) — that would be equivalent to letting users inject script into your page.
+
+
 ---
 
 ## GeoJsonLayer
