@@ -1,12 +1,15 @@
 """Aggregation layer helpers for dash-deckgl (from @deck.gl/aggregation-layers)."""
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from .base import BaseLayer, AccessorValue, ColorValue
 
 
 class HeatmapLayer(BaseLayer):
     """Render a heatmap based on point density.
+
+    Note: deck.gl's HeatmapLayer draws an aggregated density surface, so per-feature
+    interaction props like `auto_highlight` do not apply here.
 
     Example:
         >>> HeatmapLayer(

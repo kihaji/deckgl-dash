@@ -39,6 +39,7 @@ nav:
       - Layer Data Updates: guides/layer-data-updates.md
       - Layer Ordering: guides/layer-ordering.md
       - Time Slider & Animation: guides/time-slider-animation.md
+      - Binary Data Transport: guides/binary-data-transport.md
       - Coordinate Conversion: guides/coordinate-conversion.md
   - API Reference:
       - DeckGL Component: api/deckgl-component.md

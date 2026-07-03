@@ -1,7 +1,7 @@
 """deckgl-dash: Direct deck.gl wrapper for Plotly Dash.
 
-High-performance WebGL-powered visualization with support for large vector datasets,
-Cloud Optimized GeoTIFFs (COGs), and tile-based base maps.
+High-performance WebGL-powered visualization with support for large vector datasets
+and tile-based base maps.
 
 Example:
     >>> from dash import Dash
@@ -54,7 +54,8 @@ from .bounds import compute_bounds
 from .timefilter import compute_time_domain, build_time_filter
 
 # Export list
-__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter', 'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION', 'compute_bounds', 'compute_time_domain', 'build_time_filter']
+__all__ = ['DeckGL', 'DeckGLBase', 'layers', 'maplibre', 'ColorScale', 'color_range_from_scale', 'AVAILABLE_SCALES', 'CoordinateConverter',
+           'DrawingConfig', 'DrawingStyle', 'DRAWING_MODES', 'EMPTY_FEATURE_COLLECTION', 'compute_bounds', 'compute_time_domain', 'build_time_filter']
 
 if not hasattr(_dash, '__plotly_dash') and not hasattr(_dash, 'development'):
     print('Dash was not successfully imported. '
@@ -93,7 +94,10 @@ _js_dist.extend(
     ]
 )
 
-# TODO: Figure out if unpkg link works
+# Note: the unpkg external_url entries above/below are boilerplate that only applies
+# when async_resources is non-empty AND the app sets serve_locally=False. This package
+# is not published to npm, so unpkg would 404 — keep async_resources empty (bundle is
+# served locally from the wheel) unless the package is also published to npm.
 _js_dist.extend(
     [
         {
@@ -114,14 +118,20 @@ _js_dist.extend(
         {
             'relative_package_path': 'deckgl_dash.min.js',
             'namespace': package_name
-        },
+        }
+    ]
+)
+
+# The source map is excluded from the wheel (pyproject `exclude`) to save ~10 MB;
+# only declare it when present (dev checkouts) so Dash never references a missing file.
+if _os.path.exists(_os.path.join(_basepath, 'deckgl_dash.min.js.map')):
+    _js_dist.append(
         {
             'relative_package_path': 'deckgl_dash.min.js.map',
             'namespace': package_name,
             'dynamic': True
         }
-    ]
-)
+    )
 
 _css_dist = []
 

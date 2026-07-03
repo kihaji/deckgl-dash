@@ -246,6 +246,17 @@ class PathLayer(BaseLayer):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
+        if self._multi_color and not self._show_direction:
+            from ..binary import is_binary_data
+            if is_binary_data(result.get('data')):
+                raise ValueError(
+                    "multi_color=True is unnecessary with binary data and not supported: the stock PathLayer "
+                    "consumes per-vertex colors natively. Drop multi_color and provide one color PER VERTEX "
+                    "with _path_type='open':\n"
+                    "    PathLayer(id, use_binary = True, _path_type = 'open',\n"
+                    "              data = {'getPath': verts, 'getColor': per_vertex_colors, 'startIndices': starts})\n"
+                    "See docs/guides/binary-data-transport.md. (show_direction=True works with binary data.)"
+                )
         if self._show_direction:
             # Composite that draws the line + arrows; it picks its line sublayer via multiColor.
             result['@@type'] = 'DirectedPathLayer'
@@ -435,7 +446,8 @@ class TextLayer(BaseLayer):
     """
     _layer_type = 'TextLayer'
     _color_props = ('get_color', 'background_color', 'get_background_color')
-    _accessor_props = ('get_position', 'get_text', 'get_size', 'get_color', 'get_angle', 'get_text_anchor', 'get_alignment_baseline', 'get_pixel_offset')
+    _accessor_props = ('get_position', 'get_text', 'get_size', 'get_color', 'get_angle', 'get_text_anchor', 'get_alignment_baseline',
+                       'get_pixel_offset')
 
     def __init__(
         self, id: str, data: Any, *,

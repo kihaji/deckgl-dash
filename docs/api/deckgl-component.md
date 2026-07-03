@@ -299,6 +299,22 @@ def load_data(n):
 
 See the [Layer Data Updates Guide](../guides/layer-data-updates.md) for detailed patterns.
 
+## Zoom-Gated Layer Visibility
+
+Give any layer `visibleMinZoom` / `visibleMaxZoom` (Python helpers: pass `visible_min_zoom = ...` / `visible_max_zoom = ...`) and its visibility folds into the current map zoom — LOD-style dashboards where detail layers appear only when zoomed in:
+
+```python
+layers = [
+    # Region overview: only while zoomed out
+    {"@@type": "GeoJsonLayer", "id": "regions", "data": regions, "visibleMaxZoom": 10},
+    # Individual points: only when zoomed in
+    {"@@type": "ScatterplotLayer", "id": "points", "data": points,
+     "getPosition": "@@=pos", "visibleMinZoom": 10},
+]
+```
+
+Works in both deck-only and MapLibre modes. The user-supplied `visible` is preserved and re-applied when the layer comes back in range, and crossing a threshold pushes layers exactly once (no per-frame churn — MapLibre's `zoom` event fires every frame, but layers only update when a gate actually flips). Named after deck.gl 9.3's TileLayer props; note `minZoom`/`maxZoom` are *not* used for gating because tile layers give those data-range semantics. See `examples/zoom_gated_layers_demo.py`.
+
 ## Layer Ordering
 
 deck.gl renders layers in array order — the first layer in the list is drawn at the bottom, the last is drawn on top. The `layer_order` prop lets you control this rendering order dynamically without resending layer data.
