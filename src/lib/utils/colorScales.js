@@ -27,6 +27,23 @@ export const AVAILABLE_SCALES = [
     'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'turbo',
 ];
 
+// chroma.js only bundles the ColorBrewer palettes — the matplotlib perceptually-uniform
+// scales must be registered explicitly (passing their name to chroma.scale() throws).
+// Hex control points match deckgl_dash/colors.py (_SCALE_COLORS) for Python/JS parity.
+const MATPLOTLIB_SCALES = {
+    viridis: ['#440154', '#482878', '#3e4a89', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
+    plasma: ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26', '#f0f921'],
+    inferno: ['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d13d', '#fcffa4'],
+    magma: ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#feca8d', '#fcfdbf'],
+    cividis: ['#00204d', '#00336f', '#39486b', '#575c6d', '#6f7174', '#87877b', '#a09e81', '#bab587', '#d6cd8e', '#ffe945'],
+    turbo: ['#30123b', '#4662d7', '#35aaf9', '#1ae4b6', '#72fe5e', '#c8ef34', '#faba39', '#f66b19', '#ca2a04', '#7a0403'],
+};
+
+/** chroma.scale() for any advertised scale name, including the matplotlib set. */
+function makeChromaScale(scaleName) {
+    return chroma.scale(MATPLOTLIB_SCALES[scaleName] || scaleName);
+}
+
 /**
  * Parse @@scale(...) accessor string
  * @param {string} value - String starting with '@@scale('
@@ -213,7 +230,7 @@ export function createColorScaleAccessor(config, data) {
     }
 
     // Create chroma scale
-    let scale = chroma.scale(scaleName);
+    let scale = makeChromaScale(scaleName);
     if (modifiers.reverse) {
         scale = scale.domain([1, 0]); // Reverse by inverting domain
     }
@@ -275,7 +292,7 @@ export function colorRangeFromScale(scaleName, steps = 6, options = {}) {
         effectiveScale = 'viridis';
     }
 
-    const scale = chroma.scale(effectiveScale).colors(steps);
+    const scale = makeChromaScale(effectiveScale).colors(steps);
     let colors = scale.map(c => {
         const rgb = chroma(c).rgb();
         return [Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2])];
