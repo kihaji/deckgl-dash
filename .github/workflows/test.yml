@@ -47,6 +47,9 @@ jobs:
         run: |
           uv sync
           uv pip install "dash[testing]==${{ matrix.dash-version }}"
+          # dash 4.x [testing] pulls percy-python-selenium, whose top-level `percy` module
+          # clobbers percy 2.0.2's; dash.testing.browser needs percy.Runner from the latter
+          uv pip install --reinstall percy==2.0.2
 
       - name: Run ruff linter
         run: uv run ruff check .
