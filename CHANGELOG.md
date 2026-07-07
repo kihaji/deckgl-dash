@@ -7,8 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-07
+
 ### Added
 - **`delete` drawing mode** — click-to-delete: activate the mode once, then each click on a feature deletes it immediately (no prior selection needed). Deletions sync back to Python via the existing drawing event path; the `deleteSelected` flag mechanism remains for backward compatibility.
+- **Binary data transport** (`use_binary=True`) — layers can ship coordinate/attribute data as typed arrays instead of JSON, cutting transfer size and parse time for large datasets. Direction arrows (`show_direction=True`) work on binary path data too; incompatible combinations (`use_binary` with `multi_color`/`show_direction` where unsupported) raise clear errors instead of failing silently.
+- **Zoom-gated layer visibility** — `visible_min_zoom`/`visible_max_zoom` on all layers show or hide a layer based on the current zoom, without a server round trip.
+- **Layer prop validation with "did you mean?" suggestions** — unknown keyword arguments to Python layer constructors now raise immediately with the closest valid prop name, instead of being silently dropped.
+- `promote_id` is accepted in MapLibre source definitions.
+
+### Changed
+- **deck.gl upgraded 9.2 → 9.3** (with `@deck.gl-community/editable-layers` in lockstep) and **maplibre-gl 4.7 → 5.24**.
+- **Python 3.11+ required**; tested through Python 3.14 and against both Dash 3.x and 4.x (`dash >= 3.0, < 5`).
+- **Packaging modernized to uv + PEP 621** with self-building wheels: the JS bundle is built automatically during `uv build` / `pip install`, the sdist ships JS sources instead of build artifacts, and the 10 MB source map is no longer shipped in the wheel.
+- `DirectedPathLayer` marker placement is significantly faster on large datasets.
+- R and Julia bindings are no longer generated or shipped.
+
+### Fixed
+- `color_range_from_scale` raises on unknown scale names instead of silently falling back to viridis.
+- `to_camel_case` preserves leading underscores, so private/underscored props reach deck.gl intact.
+- `@@scale` with the matplotlib palettes (plasma, inferno, magma, cividis, turbo) threw in the browser — they were never registered with chroma.js. All 33 scale names now work identically in Python and JS.
+- React rules-of-hooks violation in the DeckGL component; console profiling is now gated behind a `DEBUG_PERF` flag instead of always writing to the console.
+- Stale prop documentation regenerated (`DeckGL.py` docstrings match the current component).
+
+### Docs
+- New "Choosing a basemap" guide; documented the `@@=` expression security posture and binary per-segment path colors; consolidated overlapping examples; removed the unimplemented COG/GeoTIFF claim.
 
 ## [0.10.0] - 2026-06-14
 
