@@ -54,6 +54,11 @@ def bump_version(new_version: str, dry_run: bool = False) -> bool:
                 full_path.write_text(new_content)
             print(f"  ✓ Updated {filepath}")
 
+    # uv.lock records the project's own version; CI gates on `uv lock --check`
+    if not run("uv lock", dry_run):
+        print("❌ Error: uv lock failed")
+        return False
+
     return True
 
 

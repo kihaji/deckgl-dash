@@ -31,6 +31,9 @@ def collect_versions() -> dict[str, str]:
     pkg_info = json.loads((PROJECT_ROOT / "deckgl_dash" / "package-info.json").read_text())
     versions["deckgl_dash/package-info.json"] = pkg_info.get("version", "<not found>")
 
+    match = re.search(r'^name = "deckgl-dash"\nversion = "([^"]+)"', (PROJECT_ROOT / "uv.lock").read_text(), re.MULTILINE)
+    versions["uv.lock"] = match.group(1) if match else "<not found>"
+
     return versions
 
 
